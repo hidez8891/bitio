@@ -18,7 +18,7 @@ func setterFactory(rv reflect.Value, size int) (setter, error) {
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		return &numberSetter{rv, size}, nil
 	default:
-		return nil, fmt.Errorf("bitio: not support type %s", rv.Kind().String())
+		return nil, fmt.Errorf("bitio: not support type %q", rv.Kind().String())
 	}
 }
 
