@@ -12,12 +12,12 @@ import (
 func Read(dstptr interface{}, srcreader io.Reader) error {
 	rv := reflect.ValueOf(dstptr)
 	if rv.Kind() != reflect.Ptr {
-		return fmt.Errorf("bitio.Read: dstptr need to set pointer type of struct")
+		return fmt.Errorf("bitio.Read: want to set pointer type of struct")
 	}
 
 	rv = rv.Elem()
 	if rv.Kind() != reflect.Struct {
-		return fmt.Errorf("bitio.Read: dstptr need to set pointer type of struct")
+		return fmt.Errorf("bitio.Read: want to set pointer type of struct")
 	}
 	rt := rv.Type()
 
@@ -59,7 +59,7 @@ func Read(dstptr interface{}, srcreader io.Reader) error {
 	buffer := make([]byte, readsize)
 	n, err := srcreader.Read(buffer)
 	if err != nil {
-		return fmt.Errorf("bitio.Read: read data from srcreader failed")
+		return fmt.Errorf("bitio.Read: read failed")
 	}
 	if n != readsize {
 		return fmt.Errorf("bitio.Read: read %d bytes, want %d bytes", n, readsize)
