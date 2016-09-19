@@ -104,7 +104,8 @@ func TestReader(t *testing.T) {
 	for _, test := range readtests {
 		dst := test.dst
 		if err := Read(dst, bytes.NewReader(test.src)); err != nil {
-			t.Fatal("Read error:", err)
+			rt := reflect.TypeOf(test.dst)
+			t.Fatalf("Read %v error: %v", rt, err)
 		}
 
 		rv := reflect.ValueOf(dst).Elem()
@@ -119,7 +120,8 @@ func TestReader(t *testing.T) {
 
 			name := f.Name
 			if tostrCompare(v, test.ans[name]) == false {
-				t.Fatalf("%s read %v, want %v", name, v, test.ans[name])
+				rt := reflect.TypeOf(test.dst)
+				t.Fatalf("%v %s read %v, want %v", rt, name, v, test.ans[name])
 			}
 		}
 	}
