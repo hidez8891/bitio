@@ -24,6 +24,17 @@ type TestStruct3 struct {
 	Val3 int `bit:"1"`
 }
 
+type TestStruct4 struct {
+	Val1 int    `byte:"1"`
+	Val2 string `byte:"3"`
+}
+
+type TestStruct5 struct {
+	Val1 int    `bit:"4"`
+	Val2 string `byte:"1"`
+	Val3 int    `bit:"4"`
+}
+
 type readTester struct {
 	src []byte
 	dst interface{}
@@ -55,6 +66,23 @@ var readtests = []readTester{
 			"Val1": 0x1,    // 1
 			"Val2": 0x0b2f, // 0010_1111 0010_11 [Little endian]
 			"Val3": 0x1,    // 1
+		},
+	},
+	{
+		src: []byte{0x01, 'a', 'b', 'c'},
+		dst: &TestStruct4{},
+		ans: map[string]interface{}{
+			"Val1": 0x1,
+			"Val2": "abc",
+		},
+	},
+	{
+		src: []byte{0x16, 0x11},
+		dst: &TestStruct5{},
+		ans: map[string]interface{}{
+			"Val1": 0x1,
+			"Val2": "a",
+			"Val3": 0x1,
 		},
 	},
 }

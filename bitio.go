@@ -17,6 +17,8 @@ func setterFactory(rv reflect.Value, size int) (setter, error) {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		return &numberSetter{rv, size}, nil
+	case reflect.String:
+		return &stringSetter{rv, size}, nil
 	default:
 		return nil, fmt.Errorf("bitio: not support type %q", rv.Kind().String())
 	}
@@ -34,6 +36,31 @@ func (s *numberSetter) size() int {
 func (s *numberSetter) set(b []byte, leftpad, rightpad uint) error {
 	value := toLittleEndianInt(b, leftpad, rightpad)
 	s.rval.SetInt(value)
+	return nil
+}
+
+type stringSetter struct {
+	rval reflect.Value
+	bits int
+}
+
+func (s *stringSetter) size() int {
+	return s.bits
+}
+
+func (s *stringSetter) set(b []byte, leftpad, rightpad uint) error {
+	if s.bits%8 != 0 {
+		return fmt.Errorf("bitio: string type size need to multiple of 8bit")
+	}
+
+	value := lBitsShift(b, leftpad)
+	padding := leftpad + rightpad
+	if padding >= 8 {
+		padding -= 8
+		value = append([]byte{}, value[:len(value)-1]...)
+	}
+
+	s.rval.SetString(string(value))
 	return nil
 }
 
