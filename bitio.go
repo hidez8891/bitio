@@ -12,13 +12,15 @@ type setter interface {
 	set([]byte, uint, uint) error
 }
 
-func setterFactory(rv reflect.Value, size int) (setter, error) {
+func setterFactory(rv reflect.Value, size int, len int) (setter, error) {
 	switch rv.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		return &numberSetter{rv, size}, nil
 	case reflect.String:
 		return &stringSetter{rv, size}, nil
+	case reflect.Slice:
+		return newSliceSetter(rv, size, len)
 	default:
 		return nil, fmt.Errorf("bitio: not support type %q", rv.Kind().String())
 	}
@@ -64,6 +66,56 @@ func (s *stringSetter) set(b []byte, leftpad, rightpad uint) error {
 	return nil
 }
 
+func newSliceSetter(rv reflect.Value, size int, len int) (setter, error) {
+	if len < 1 {
+		return nil, fmt.Errorf("bitio: slice type need length")
+	}
+
+	// assign
+	rv.Set(reflect.MakeSlice(rv.Type(), len, len))
+
+	elems := make([]setter, len)
+	for i := 0; i < len; i++ {
+		ev := rv.Index(i)
+		ef, err := setterFactory(ev, size, 0)
+		if err != nil {
+			return nil, err
+		}
+		elems[i] = ef
+	}
+
+	return &sliceSetter{rv, elems}, nil
+}
+
+type sliceSetter struct {
+	rval  reflect.Value
+	elems []setter
+}
+
+func (s *sliceSetter) size() int {
+	var sum int
+	for _, e := range s.elems {
+		sum += e.size()
+	}
+	return sum
+}
+
+func (s *sliceSetter) set(b []byte, leftpad, _ uint) error {
+	for _, e := range s.elems {
+		begin := leftpad / 8
+		rightpos := leftpad + uint(e.size())
+		end := (rightpos + 7) / 8
+		rightpad := end*8 - rightpos
+
+		if err := e.set(b[begin:end], leftpad, rightpad); err != nil {
+			return err
+		}
+
+		leftpad += uint(e.size())
+	}
+	return nil
+}
+
 // Read method read data from srcreader and save to dstptr.
 // dstptr's type is needed pointer type of struct.
 func Read(dstptr interface{}, srcreader io.Reader) error {
@@ -89,8 +141,12 @@ func Read(dstptr interface{}, srcreader io.Reader) error {
 			continue
 		}
 
-		var size int
-		var err error
+		var (
+			size int
+			len  int
+			err  error
+		)
+
 		if v, ok := f.Tag.Lookup("byte"); ok {
 			size, err = strconv.Atoi(v)
 			if err != nil {
@@ -106,7 +162,14 @@ func Read(dstptr interface{}, srcreader io.Reader) error {
 			return fmt.Errorf("bitio.Read: %s need size hint", f.Name)
 		}
 
-		setfunc, err := setterFactory(v, size)
+		if v, ok := f.Tag.Lookup("len"); ok {
+			len, err = strconv.Atoi(v)
+			if err != nil {
+				return fmt.Errorf("bitio.Read: %s has invalid length %q", f.Name, v)
+			}
+		}
+
+		setfunc, err := setterFactory(v, size, len)
 		if err != nil {
 			return err
 		}
