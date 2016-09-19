@@ -22,7 +22,7 @@ func converterFactory(rv reflect.Value, size int, len int) (converter, error) {
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		return newUintConverter(rv, size)
 	case reflect.String:
-		return &stringConverter{rv, size}, nil
+		return newStringConverter(rv, size)
 	case reflect.Slice:
 		return newSliceConverter(rv, size, len)
 	default:
@@ -75,6 +75,15 @@ func (s *numberConverter) get(b []byte, leftpad uint) error {
 	return nil
 }
 
+// generate string converter
+func newStringConverter(rv reflect.Value, size int) (converter, error) {
+	if size%8 != 0 {
+		return nil, fmt.Errorf("bitio: string type size need to multiple of 8bit")
+	}
+
+	return &stringConverter{rv, size}, nil
+}
+
 // string converter
 type stringConverter struct {
 	rval reflect.Value
@@ -86,10 +95,6 @@ func (s *stringConverter) size() int {
 }
 
 func (s *stringConverter) set(b []byte, leftpad uint) error {
-	if s.bits%8 != 0 {
-		return fmt.Errorf("bitio: string type size need to multiple of 8bit")
-	}
-
 	value := lBitsShift(b, leftpad)
 	padding := (8*len(b) - s.size())
 	if padding >= 8 {
