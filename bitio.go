@@ -14,9 +14,10 @@ type setter interface {
 
 func setterFactory(rv reflect.Value, size int, len int) (setter, error) {
 	switch rv.Kind() {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return &numberSetter{rv, size}, nil
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return newIntSetter(rv, size)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return newUintSetter(rv, size)
 	case reflect.String:
 		return &stringSetter{rv, size}, nil
 	case reflect.Slice:
@@ -26,9 +27,18 @@ func setterFactory(rv reflect.Value, size int, len int) (setter, error) {
 	}
 }
 
+func newIntSetter(rv reflect.Value, size int) (setter, error) {
+	return &numberSetter{rv, size, true}, nil
+}
+
+func newUintSetter(rv reflect.Value, size int) (setter, error) {
+	return &numberSetter{rv, size, false}, nil
+}
+
 type numberSetter struct {
-	rval reflect.Value
-	bits int
+	rval   reflect.Value
+	bits   int
+	signed bool
 }
 
 func (s *numberSetter) size() int {
@@ -36,8 +46,13 @@ func (s *numberSetter) size() int {
 }
 
 func (s *numberSetter) set(b []byte, leftpad, rightpad uint) error {
-	value := toLittleEndianInt(b, leftpad, rightpad)
-	s.rval.SetInt(value)
+	if s.signed {
+		value := toLittleEndianInt(b, leftpad, rightpad)
+		s.rval.SetInt(value)
+	} else {
+		value := toLittleEndianUint(b, leftpad, rightpad)
+		s.rval.SetUint(value)
+	}
 	return nil
 }
 
@@ -218,6 +233,10 @@ func Read(dstptr interface{}, srcreader io.Reader) error {
 }
 
 func toLittleEndianInt(b []byte, leftpad, rightpad uint) int64 {
+	return int64(toLittleEndianUint(b, leftpad, rightpad))
+}
+
+func toLittleEndianUint(b []byte, leftpad, rightpad uint) uint64 {
 	// require: leftpad, rightpad < 8
 	w := lBitsShift(b, leftpad)
 	padding := leftpad + rightpad
@@ -227,12 +246,12 @@ func toLittleEndianInt(b []byte, leftpad, rightpad uint) int64 {
 	}
 	w[len(w)-1] >>= padding // alignment
 
-	value := int64(0)
+	value := uint64(0)
 	digit := uint(0)
 
 	for _, w := range w {
 		// little endian
-		value |= int64(w) << digit
+		value |= uint64(w) << digit
 		digit += 8
 	}
 

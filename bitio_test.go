@@ -24,6 +24,11 @@ type TestBitioIntBitBorder struct {
 	Val3 int `bit:"1"`
 }
 
+type TestBitioUint struct {
+	Val1 int8  `byte:"1"`
+	Val2 uint8 `byte:"1"`
+}
+
 type TestBitioStringByte struct {
 	Val1 int    `byte:"1"`
 	Val2 string `byte:"3"`
@@ -36,8 +41,8 @@ type TestBitioStringBorder struct {
 }
 
 type TestBitioSlice struct {
-	Val1 []int `bit:"4" len:"2"`
-	Val2 []int `bit:"4" len:"2"`
+	Val1 []int  `bit:"4" len:"2"`
+	Val2 []byte `bit:"4" len:"2"`
 }
 
 type readTester struct {
@@ -74,6 +79,14 @@ var readtests = []readTester{
 		},
 	},
 	{
+		src: []byte{0x80, 0x80},
+		dst: &TestBitioUint{},
+		ans: map[string]interface{}{
+			"Val1": -128,
+			"Val2": 128,
+		},
+	},
+	{
 		src: []byte{0x01, 'a', 'b', 'c'},
 		dst: &TestBitioStringByte{},
 		ans: map[string]interface{}{
@@ -95,7 +108,7 @@ var readtests = []readTester{
 		dst: &TestBitioSlice{},
 		ans: map[string]interface{}{
 			"Val1": []int{0x0c, 0x0a},
-			"Val2": []int{0x0c, 0x0a},
+			"Val2": []byte{0x0c, 0x0a},
 		},
 	},
 }
