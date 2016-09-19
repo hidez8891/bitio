@@ -140,6 +140,26 @@ func TestReader(t *testing.T) {
 	}
 }
 
+func TestWriter(t *testing.T) {
+	for _, test := range readtests {
+		dst := test.dst
+		if err := Read(dst, bytes.NewReader(test.src)); err != nil {
+			t.Fatal(err)
+		}
+
+		bf := bytes.NewBuffer(make([]byte, 0))
+		if err := Write(bf, dst); err != nil {
+			rt := reflect.TypeOf(dst)
+			t.Fatalf("Write %v error: %v", rt, err)
+		}
+
+		if reflect.DeepEqual(bf.Bytes(), test.src) == false {
+			rt := reflect.TypeOf(dst)
+			t.Fatalf("%v write %v, want %v", rt, bf.Bytes(), test.src)
+		}
+	}
+}
+
 func tostrCompare(a, b interface{}) bool {
 	as := fmt.Sprintf("%v", a)
 	bs := fmt.Sprintf("%v", b)

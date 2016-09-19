@@ -1,6 +1,7 @@
 package bitio
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 	"reflect"
@@ -10,6 +11,7 @@ import (
 type setter interface {
 	size() int
 	set([]byte, uint, uint) error
+	get([]byte, uint) error
 }
 
 func setterFactory(rv reflect.Value, size int, len int) (setter, error) {
@@ -56,6 +58,17 @@ func (s *numberSetter) set(b []byte, leftpad, rightpad uint) error {
 	return nil
 }
 
+func (s *numberSetter) get(b []byte, leftpad uint) error {
+	if s.signed {
+		value := s.rval.Int()
+		fromLittleEndianInt(b, leftpad, s.size(), value)
+	} else {
+		value := s.rval.Uint()
+		fromLittleEndianUint(b, leftpad, s.size(), value)
+	}
+	return nil
+}
+
 type stringSetter struct {
 	rval reflect.Value
 	bits int
@@ -81,13 +94,34 @@ func (s *stringSetter) set(b []byte, leftpad, rightpad uint) error {
 	return nil
 }
 
+func (s *stringSetter) get(b []byte, leftpad uint) error {
+	buf := []byte(s.rval.String())
+
+	for i := range buf {
+		b[i] |= buf[i] >> leftpad
+	}
+
+	if leftpad > 0 {
+		mask := byte(0xff >> (8 - leftpad))
+		for i := range buf {
+			b[i+1] |= (buf[i] & mask) << (8 - leftpad)
+		}
+	}
+
+	return nil
+}
+
 func newSliceSetter(rv reflect.Value, size int, len int) (setter, error) {
 	if len < 1 {
 		return nil, fmt.Errorf("bitio: slice type need length")
 	}
 
 	// assign
-	rv.Set(reflect.MakeSlice(rv.Type(), len, len))
+	if rv.Len() < len {
+		rv2 := reflect.MakeSlice(rv.Type(), len, len)
+		reflect.Copy(rv2, rv)
+		rv.Set(rv2)
+	}
 
 	elems := make([]setter, len)
 	for i := 0; i < len; i++ {
@@ -123,6 +157,21 @@ func (s *sliceSetter) set(b []byte, leftpad, _ uint) error {
 		rightpad := end*8 - rightpos
 
 		if err := e.set(b[begin:end], leftpad, rightpad); err != nil {
+			return err
+		}
+
+		leftpad += uint(e.size())
+	}
+	return nil
+}
+
+func (s *sliceSetter) get(b []byte, leftpad uint) error {
+	for _, e := range s.elems {
+		begin := leftpad / 8
+		rightpos := leftpad + uint(e.size())
+		end := (rightpos + 7) / 8
+
+		if err := e.get(b[begin:end], leftpad); err != nil {
 			return err
 		}
 
@@ -232,6 +281,104 @@ func Read(dstptr interface{}, srcreader io.Reader) error {
 	return nil
 }
 
+// Write method write data to dstwriter.
+// srcptr's type is needed type of struct (or pointer).
+func Write(dstwriter io.Writer, srcptr interface{}) error {
+	rv := reflect.ValueOf(srcptr)
+	if rv.Kind() == reflect.Ptr {
+		rv = rv.Elem() // *strct -> strct
+	}
+	if rv.Kind() != reflect.Struct {
+		return fmt.Errorf("bitio.Write: want to set struct")
+	}
+	rt := rv.Type()
+
+	// read each filed size
+	fields := make(map[string]setter)
+	for i := 0; i < rv.NumField(); i++ {
+		f := rt.Field(i)
+		v := rv.Field(i)
+
+		if f.PkgPath != "" {
+			// unexport field
+			continue
+		}
+
+		var (
+			size int
+			len  int
+			err  error
+		)
+
+		if v, ok := f.Tag.Lookup("byte"); ok {
+			size, err = strconv.Atoi(v)
+			if err != nil {
+				return fmt.Errorf("bitio.Write: %s has invalid size %q byte(s)", f.Name, v)
+			}
+			size *= 8
+		} else if v, ok := f.Tag.Lookup("bit"); ok {
+			size, err = strconv.Atoi(v)
+			if err != nil {
+				return fmt.Errorf("bitio.Write: %s has invalid size %q bit(s)", f.Name, v)
+			}
+		} else {
+			return fmt.Errorf("bitio.Write: %s need size hint", f.Name)
+		}
+
+		if v, ok := f.Tag.Lookup("len"); ok {
+			len, err = strconv.Atoi(v)
+			if err != nil {
+				return fmt.Errorf("bitio.Write: %s has invalid length %q", f.Name, v)
+			}
+		}
+
+		setfunc, err := setterFactory(v, size, len)
+		if err != nil {
+			return err
+		}
+		fields[f.Name] = setfunc
+	}
+
+	writesize := 0
+	for _, v := range fields {
+		writesize += v.size()
+	}
+	writesize += 7 // padding
+	writesize /= 8
+
+	buffer := make([]byte, writesize)
+
+	// read from struct
+	posbit := int(0)
+	for i := 0; i < rv.NumField(); i++ {
+		f := rt.Field(i)
+
+		if f.PkgPath != "" {
+			// unexport field
+			continue
+		}
+
+		sizebit := fields[f.Name].size()
+		lpos := posbit / 8
+		rpos := (posbit + sizebit + 7) / 8
+		lpad := uint(posbit - lpos*8)
+		posbit += sizebit
+		if err := fields[f.Name].get(buffer[lpos:rpos], lpad); err != nil {
+			return err
+		}
+	}
+
+	n, err := dstwriter.Write(buffer)
+	if err != nil {
+		return fmt.Errorf("bitio.Write: write failed")
+	}
+	if n != writesize {
+		return fmt.Errorf("bitio.Write: write %d bytes, want %d bytes", n, writesize)
+	}
+
+	return nil
+}
+
 func toLittleEndianInt(b []byte, leftpad, rightpad uint) int64 {
 	return int64(toLittleEndianUint(b, leftpad, rightpad))
 }
@@ -256,6 +403,31 @@ func toLittleEndianUint(b []byte, leftpad, rightpad uint) uint64 {
 	}
 
 	return value
+}
+
+func fromLittleEndianInt(dst []byte, leftpad uint, size int, value int64) {
+	fromLittleEndianUint(dst, leftpad, size, uint64(value))
+}
+
+func fromLittleEndianUint(dst []byte, leftpad uint, size int, value uint64) {
+	// require: leftpad < 8
+	bv := make([]byte, 8)
+	binary.LittleEndian.PutUint64(bv, value)
+
+	// allign
+	if size%8 != 0 {
+		index := size / 8
+		bv[index] <<= 8 - uint(size)%8
+	}
+
+	for i := range dst {
+		dst[i] |= bv[i] >> leftpad
+	}
+
+	mask := byte(0xff >> (8 - leftpad))
+	for i := range dst[1:] {
+		dst[i+1] |= (bv[i] & mask) << (8 - leftpad)
+	}
 }
 
 func lBitsShift(src []byte, shift uint) []byte {
