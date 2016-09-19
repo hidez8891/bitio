@@ -7,35 +7,35 @@ import (
 	"testing"
 )
 
-type TestStruct1 struct {
+type TestBitioIntByte struct {
 	Val1 int `byte:"1"`
 	Val2 int `byte:"2"`
 	Val3 int `byte:"3"`
 }
 
-type TestStruct2 struct {
+type TestBitioIntBit struct {
 	Val1 int `bit:"3"`
 	Val2 int `bit:"4"`
 }
 
-type TestStruct3 struct {
+type TestBitioIntBitBorder struct {
 	Val1 int `bit:"1"`
 	Val2 int `bit:"14"`
 	Val3 int `bit:"1"`
 }
 
-type TestStruct4 struct {
+type TestBitioStringByte struct {
 	Val1 int    `byte:"1"`
 	Val2 string `byte:"3"`
 }
 
-type TestStruct5 struct {
+type TestBitioStringBorder struct {
 	Val1 int    `bit:"4"`
 	Val2 string `byte:"1"`
 	Val3 int    `bit:"4"`
 }
 
-type TestStruct6 struct {
+type TestBitioSlice struct {
 	Val1 []int `bit:"4" len:"2"`
 	Val2 []int `bit:"4" len:"2"`
 }
@@ -49,7 +49,7 @@ type readTester struct {
 var readtests = []readTester{
 	{
 		src: []byte{0x0a, 0xff, 0x1c, 0xff, 0x01, 0x1c},
-		dst: &TestStruct1{},
+		dst: &TestBitioIntByte{},
 		ans: map[string]interface{}{
 			"Val1": 0x0a,
 			"Val2": 0x1cff,
@@ -58,7 +58,7 @@ var readtests = []readTester{
 	},
 	{
 		src: []byte{0xfa}, // 1111_1010
-		dst: &TestStruct2{},
+		dst: &TestBitioIntBit{},
 		ans: map[string]interface{}{
 			"Val1": 0x7, // 111
 			"Val2": 0xd, // 1101
@@ -66,7 +66,7 @@ var readtests = []readTester{
 	},
 	{
 		src: []byte{0x97, 0x97}, // 1001_0111 1001_0111
-		dst: &TestStruct3{},
+		dst: &TestBitioIntBitBorder{},
 		ans: map[string]interface{}{
 			"Val1": 0x1,    // 1
 			"Val2": 0x0b2f, // 0010_1111 0010_11 [Little endian]
@@ -75,7 +75,7 @@ var readtests = []readTester{
 	},
 	{
 		src: []byte{0x01, 'a', 'b', 'c'},
-		dst: &TestStruct4{},
+		dst: &TestBitioStringByte{},
 		ans: map[string]interface{}{
 			"Val1": 0x1,
 			"Val2": "abc",
@@ -83,7 +83,7 @@ var readtests = []readTester{
 	},
 	{
 		src: []byte{0x16, 0x11},
-		dst: &TestStruct5{},
+		dst: &TestBitioStringBorder{},
 		ans: map[string]interface{}{
 			"Val1": 0x1,
 			"Val2": "a",
@@ -92,7 +92,7 @@ var readtests = []readTester{
 	},
 	{
 		src: []byte{0xca, 0xca},
-		dst: &TestStruct6{},
+		dst: &TestBitioSlice{},
 		ans: map[string]interface{}{
 			"Val1": []int{0x0c, 0x0a},
 			"Val2": []int{0x0c, 0x0a},
