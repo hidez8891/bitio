@@ -125,11 +125,11 @@ func TestBitReadBuffer_ReadBits_Loop(t *testing.T) {
 
 		b := make([]byte, 2)
 		if n, err = r.ReadBits(b, i); err != nil {
-			t.Fatalf("ReadBit happen error %v", err)
+			t.Fatalf("ReadBits happen error %v", err)
 		}
 
 		if n != i {
-			t.Fatalf("ReadBit read size %d, want %d", n, i)
+			t.Fatalf("ReadBits read size %d, want %d", n, i)
 		}
 
 		exp := []byte{0x00, 0x00}
@@ -140,7 +140,7 @@ func TestBitReadBuffer_ReadBits_Loop(t *testing.T) {
 		}
 
 		if reflect.DeepEqual(b, exp) == false {
-			t.Fatalf("ReadBit read data %x, want %x", b, exp)
+			t.Fatalf("ReadBits read data %x, want %x", b, exp)
 		}
 	}
 }
@@ -329,7 +329,7 @@ func TestBitWriteBuffer_WriteBits(t *testing.T) {
 		}
 
 		if err = w.Flush(); err != nil {
-			t.Fatalf("WriteBit happen error %v", err)
+			t.Fatalf("WriteBits happen error %v", err)
 		}
 
 		if n != tt.bits {
@@ -379,7 +379,7 @@ func TestBitWriteBuffer_WriteBits_Loop(t *testing.T) {
 	}
 
 	if err := w.Flush(); err != nil {
-		t.Fatalf("WriteBit happen error %v", err)
+		t.Fatalf("WriteBits happen error %v", err)
 	}
 
 	if reflect.DeepEqual(b.Bytes(), exp) == false {
