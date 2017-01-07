@@ -79,30 +79,40 @@ func (obj *BitReadBuffer) ReadBit(b *byte, bitSize int) (nBit int, err error) {
 // If error happen, err will be set.
 // Read data is saved right justified. (12bit = 0x0f 0xff)
 func (obj *BitReadBuffer) ReadBits(p []byte, bitSize int) (nBit int, err error) {
-	var n int
-
 	if len(p)*8 < bitSize {
 		return 0, fmt.Errorf("bitio: argument p[] is %d bits, want %d bits", len(p)*8, bitSize)
 	}
 
-	byteSize := bitSize / 8
-	bitSize %= 8
+	if bitSize <= obj.left {
+		p[0] = obj.buff >> uint(8-bitSize)
+		nBit = bitSize
 
-	if byteSize > 0 {
-		if n, err = obj.Read(p[:byteSize]); err != nil {
-			return
-		}
-		nBit += n
+		obj.buff <<= uint(bitSize)
+		obj.left -= bitSize
+		return
 	}
 
-	if bitSize > 0 {
-		if n, err = obj.ReadBit(&p[byteSize], bitSize); err != nil {
-			return
-		}
-		nBit += n
+	byteSize := (bitSize + 7) / 8
+	readBitSize := bitSize - obj.left
+	readByte := (readBitSize + 7) / 8
+	pp := make([]byte, readByte)
+	if _, err = obj.r.Read(pp); err != nil {
+		return
+	}
+	nBit = bitSize
 
-		p[byteSize] <<= uint(8 - bitSize)
-		rightShift(p[0:byteSize+1], uint(8-bitSize))
+	copy(p[:readByte], pp)
+	rightShift(p[:byteSize], uint(obj.left))
+	p[0] |= obj.buff
+	if bitSize%8 > 0 {
+		rightShift(p[:byteSize], uint(8-bitSize%8))
+	}
+	obj.buff = 0
+	obj.left = 0
+
+	if readBitSize%8 > 0 {
+		obj.left = 8 - readBitSize%8
+		obj.buff = pp[len(pp)-1] << uint(8-obj.left)
 	}
 
 	return
@@ -111,43 +121,7 @@ func (obj *BitReadBuffer) ReadBits(p []byte, bitSize int) (nBit int, err error) 
 // Read reads data len(p) size and returns read size.
 // If error happen, err will be set.
 func (obj *BitReadBuffer) Read(p []byte) (nBit int, err error) {
-	if err = obj.tryRead(); err != nil {
-		return 0, err
-	}
-	if len(p) == 0 {
-		return 0, err
-	}
-
-	n := obj.left
-	p[0] = obj.buff >> uint(8-obj.left)
-	obj.left = 0
-	nBit += n
-
-	for i := 1; i < len(p); i++ {
-		if err = obj.forceRead(); err != nil {
-			return
-		}
-
-		p[i] = obj.buff
-		obj.left = 0
-		nBit += 8
-	}
-
-	if n < 8 {
-		if err = obj.forceRead(); err != nil {
-			return
-		}
-		nn := 8 - n
-
-		leftShift(p, uint(nn))
-		p[len(p)-1] |= obj.buff >> uint(8-nn)
-		nBit += nn
-
-		obj.buff <<= uint(nn)
-		obj.left -= nn
-	}
-
-	return
+	return obj.ReadBits(p, len(p)*8)
 }
 
 // tryRead reads 1 byte data if obj.buff is empty.
