@@ -24,7 +24,7 @@ func ReadContainer(r io.Reader) (*Container, error) {
 	c := &Container{}
 
 	br := bitio.NewBitFieldReader(r)
-	if _, err := bitio.Read(c); err != nil {
+	if _, err := br.Read(c); err != nil {
 		return nil, err
 	}
 
@@ -32,8 +32,8 @@ func ReadContainer(r io.Reader) (*Container, error) {
 }
 
 func WriteContainer(w io.Writer, c *Container) (nBit int, err error) {
-	br := bitio.NewBitFieldWriter(w)
-	if nBit, err = bitio.Write(c); err != nil {
+	bw := bitio.NewBitFieldWriter(w)
+	if nBit, err = bw.Write(c); err != nil {
 		return
 	}
 
@@ -47,25 +47,31 @@ func WriteContainer(w io.Writer, c *Container) (nBit int, err error) {
 func ReadBit(r io.Reader) {
 	br := bitio.NewBitReadBuffer(r)
 
+	//read 1bit
 	var b1 byte
-	br.ReadBit(&b1, 1)  //read 1bit
+	br.ReadBit(&b1, 1)
 
+	//read 10bit
 	b2 := make([]byte, 2)
-	br.ReadBits(b2, 10) //read 10bit
+	br.ReadBits(b2, 10)
 
+	//read 2byte(16bit)
 	b3 := make([]byte, 2)
-	br.Read(b3)         //read 2byte(16bit)
+	br.Read(b3)
 }
 
 func WriteBit(w io.Writer) {
 	bw := bitio.NewBitWriteBuffer(w)
 
-	bw.WriteBit(0x01, 1)  //write 1bit
+	//write 1bit
+	bw.WriteBit(0x01, 1)
 
+	//write 10bit
 	b2 := []byte{0x01, 0x02}
-	bw.WriteBits(b2, 10) //write 10bit
+	bw.WriteBits(b2, 10)
 
+	//write 2byte(16bit)
 	b3 := []byte{0x01, 0x02}
-	bw.Write(b3)         //write 2byte(16bit)
+	bw.Write(b3)
 }
 ```
