@@ -31,9 +31,7 @@ func ReadContainer(r io.Reader) (*Container, error) {
 	return c, nil
 }
 
-func WriteContainer(w io.Writer, c Container) (nBit int, err error) {
-	c := &Container{}
-
+func WriteContainer(w io.Writer, c *Container) (nBit int, err error) {
 	br := bitio.NewBitFieldWriter(w)
 	if nBit, err = bitio.Write(c); err != nil {
 		return
