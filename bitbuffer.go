@@ -227,8 +227,10 @@ func (obj *BitWriteBuffer) WriteBits(p []byte, bitSize int) (nBit int, err error
 		pp = pp[:len(pp)-1]
 	}
 
-	if _, err = obj.w.Write(pp); err != nil {
-		return
+	if allBitSize/8 > 0 {
+		if _, err = obj.w.Write(pp); err != nil {
+			return
+		}
 	}
 	nBit = bitSize
 

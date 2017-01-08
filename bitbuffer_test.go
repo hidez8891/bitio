@@ -178,59 +178,73 @@ func TestBitReadBuffer_Read(t *testing.T) {
 }
 
 func TestBitReadBuffer_Read_Combination(t *testing.T) {
-	str := "" +
-		"01" +
-		"0011_0110" +
-		"111" +
-		"00_0111_0011" +
-		"00_0111_0011" +
-		"0011_0110"
-	data := binaryToByteArray(str)
+	datas := [][]byte{
+		binaryToByteArray("" +
+			"01" +
+			"0011_0110" +
+			"111" +
+			"01_0111_0011" +
+			"01_0111_0011" +
+			"0011_0110"),
+		[]byte{0x97, 0x97},
+	}
 
-	var tests = []struct {
+	var tests = [][]struct {
 		bits int
 		exp  []byte
 	}{
-		{2, []byte{0x01}},
-		{8, []byte{0x36}},
-		{3, []byte{0x07}},
-		{10, []byte{0x00, 0x73}},
-		{10, []byte{0x00, 0x73}},
-		{8, []byte{0x36}},
+		{
+			{2, []byte{0x01}},
+			{8, []byte{0x36}},
+			{3, []byte{0x07}},
+			{10, []byte{0x01, 0x73}},
+			{10, []byte{0x01, 0x73}},
+			{8, []byte{0x36}},
+		},
+		{
+			{1, []byte{0x01}},
+			{14, []byte{0x0b, 0xcb}},
+			{1, []byte{0x01}},
+		},
 	}
 
-	r := NewBitReadBuffer(bytes.NewReader(data))
-	for _, tt := range tests {
-		var n int
-		var b []byte
-		var err error
+	for i := 0; i < len(tests); i++ {
+		data := datas[i]
+		test := tests[i]
+		r := NewBitReadBuffer(bytes.NewReader(data))
 
-		b = make([]byte, (tt.bits+7)/8)
+		for _, tt := range test {
+			var n int
+			var b []byte
+			var err error
 
-		if tt.bits < 8 {
-			// test ReadBit
-			if n, err = r.ReadBit(&b[0], tt.bits); err != nil {
-				t.Fatalf("BitReadBuffer happen error %v", err)
+			b = make([]byte, (tt.bits+7)/8)
+
+			if tt.bits < 8 {
+				// test ReadBit
+				if n, err = r.ReadBit(&b[0], tt.bits); err != nil {
+					t.Fatalf("BitReadBuffer happen error %v", err)
+				}
+			} else if tt.bits == 8 {
+				// test Read
+				if n, err = r.Read(b); err != nil {
+					t.Fatalf("BitReadBuffer happen error %v", err)
+				}
+				n *= 8
+			} else {
+				// test ReadBits
+				if n, err = r.ReadBits(b, tt.bits); err != nil {
+					t.Fatalf("BitReadBuffer happen error %v", err)
+				}
 			}
-		} else if tt.bits == 8 {
-			// test Read
-			if n, err = r.Read(b); err != nil {
-				t.Fatalf("BitReadBuffer happen error %v", err)
-			}
-			n *= 8
-		} else {
-			// test ReadBits
-			if n, err = r.ReadBits(b, tt.bits); err != nil {
-				t.Fatalf("BitReadBuffer happen error %v", err)
-			}
-		}
 
-		if n != tt.bits {
-			t.Fatalf("BitReadBuffer read size %d, want %d", n, tt.bits)
-		}
+			if n != tt.bits {
+				t.Fatalf("BitReadBuffer read size %d, want %d", n, tt.bits)
+			}
 
-		if reflect.DeepEqual(b, tt.exp) == false {
-			t.Fatalf("BitReadBuffer read data %x, want %x", b, tt.exp)
+			if reflect.DeepEqual(b, tt.exp) == false {
+				t.Fatalf("BitReadBuffer read data %x, want %x", b, tt.exp)
+			}
 		}
 	}
 }
@@ -423,62 +437,76 @@ func TestBitWriteBuffer_Write(t *testing.T) {
 }
 
 func TestBitWriteBuffer_Write_Combination(t *testing.T) {
-	str := "" +
-		"01" +
-		"0011_0110" +
-		"111" +
-		"01_0111_0011" +
-		"01_0111_0011" +
-		"0011_0110"
-	exp := binaryToByteArray(str)
+	exps := [][]byte{
+		binaryToByteArray("" +
+			"01" +
+			"0011_0110" +
+			"111" +
+			"01_0111_0011" +
+			"01_0111_0011" +
+			"0011_0110"),
+		[]byte{0x97, 0x97},
+	}
 
-	var tests = []struct {
+	var tests = [][]struct {
 		bits int
 		data []byte
 	}{
-		{2, []byte{0x01}},
-		{8, []byte{0x36}},
-		{3, []byte{0x07}},
-		{10, []byte{0x01, 0x73}},
-		{10, []byte{0x01, 0x73}},
-		{8, []byte{0x36}},
+		{
+			{2, []byte{0x01}},
+			{8, []byte{0x36}},
+			{3, []byte{0x07}},
+			{10, []byte{0x01, 0x73}},
+			{10, []byte{0x01, 0x73}},
+			{8, []byte{0x36}},
+		},
+		{
+			{1, []byte{0x01}},
+			{14, []byte{0x0b, 0xcb}},
+			{1, []byte{0x01}},
+		},
 	}
 
-	b := bytes.NewBuffer([]byte{})
-	w := NewBitWriteBuffer(b)
-	for _, tt := range tests {
-		var n int
-		var err error
+	for i := 0; i < len(tests); i++ {
+		exp := exps[i]
+		test := tests[i]
+		b := bytes.NewBuffer([]byte{})
+		w := NewBitWriteBuffer(b)
 
-		if tt.bits < 8 {
-			// test WriteBit
-			if n, err = w.WriteBit(tt.data[0], tt.bits); err != nil {
-				t.Fatalf("BitWriteBuffer happen error %v", err)
+		for _, tt := range test {
+			var n int
+			var err error
+
+			if tt.bits < 8 {
+				// test WriteBit
+				if n, err = w.WriteBit(tt.data[0], tt.bits); err != nil {
+					t.Fatalf("BitWriteBuffer happen error %v", err)
+				}
+			} else if tt.bits == 8 {
+				// test Write
+				if n, err = w.Write(tt.data); err != nil {
+					t.Fatalf("BitWriteBuffer happen error %v", err)
+				}
+				n *= 8
+			} else {
+				// test WriteBits
+				if n, err = w.WriteBits(tt.data, tt.bits); err != nil {
+					t.Fatalf("BitWriteBuffer happen error %v", err)
+				}
 			}
-		} else if tt.bits == 8 {
-			// test Write
-			if n, err = w.Write(tt.data); err != nil {
-				t.Fatalf("BitWriteBuffer happen error %v", err)
-			}
-			n *= 8
-		} else {
-			// test WriteBits
-			if n, err = w.WriteBits(tt.data, tt.bits); err != nil {
-				t.Fatalf("BitWriteBuffer happen error %v", err)
+
+			if n != tt.bits {
+				t.Fatalf("BitWriteBuffer write size %d, want %d", n, tt.bits)
 			}
 		}
 
-		if n != tt.bits {
-			t.Fatalf("BitWriteBuffer write size %d, want %d", n, tt.bits)
+		if err := w.Flush(); err != nil {
+			t.Fatalf("Write happen error %v", err)
 		}
-	}
 
-	if err := w.Flush(); err != nil {
-		t.Fatalf("Write happen error %v", err)
-	}
-
-	if reflect.DeepEqual(b.Bytes(), exp) == false {
-		t.Fatalf("BitWriteBuffer write data %x, want %x", b.Bytes(), exp)
+		if reflect.DeepEqual(b.Bytes(), exp) == false {
+			t.Fatalf("BitWriteBuffer write data %x, want %x", b.Bytes(), exp)
+		}
 	}
 }
 
