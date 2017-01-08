@@ -9,14 +9,14 @@ import (
 type BitReader interface {
 	ReadBit(p *byte, bitSize int) (nBit int, err error)
 	ReadBits(p []byte, bitSize int) (nBit int, err error)
-	Read(p []byte) (nBit int, err error)
+	Read(p []byte) (nByte int, err error)
 }
 
 // BitWriter is the interface bit/byte writting method
 type BitWriter interface {
 	WriteBit(p byte, bitSize int) (nBit int, err error)
 	WriteBits(p []byte, bitSize int) (nBit int, err error)
-	Write(p []byte) (nBit int, err error)
+	Write(p []byte) (nByte int, err error)
 	Flush() error
 }
 
@@ -120,8 +120,9 @@ func (obj *BitReadBuffer) ReadBits(p []byte, bitSize int) (nBit int, err error) 
 
 // Read reads data len(p) size and returns read size.
 // If error happen, err will be set.
-func (obj *BitReadBuffer) Read(p []byte) (nBit int, err error) {
-	return obj.ReadBits(p, len(p)*8)
+func (obj *BitReadBuffer) Read(p []byte) (nByte int, err error) {
+	nBit, err := obj.ReadBits(p, len(p)*8)
+	return nBit / 8, err
 }
 
 // tryRead reads 1 byte data if obj.buff is empty.
@@ -236,8 +237,9 @@ func (obj *BitWriteBuffer) WriteBits(p []byte, bitSize int) (nBit int, err error
 
 // Write writes data len(p) size and returns write size.
 // If error happen, err will be set.
-func (obj *BitWriteBuffer) Write(p []byte) (nBit int, err error) {
-	return obj.WriteBits(p, len(p)*8)
+func (obj *BitWriteBuffer) Write(p []byte) (nByte int, err error) {
+	nBit, err := obj.WriteBits(p, len(p)*8)
+	return nBit / 8, err
 }
 
 // Flush writes data if obj.buff is not empty.

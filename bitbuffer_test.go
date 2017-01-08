@@ -167,8 +167,8 @@ func TestBitReadBuffer_Read(t *testing.T) {
 			t.Fatalf("Read happen error %v", err)
 		}
 
-		if n != tt.size*8 {
-			t.Fatalf("Read read size %d, want %d", n, tt.size*8)
+		if n != tt.size {
+			t.Fatalf("Read read size %d, want %d", n, tt.size)
 		}
 
 		if reflect.DeepEqual(b, tt.exp) == false {
@@ -217,6 +217,7 @@ func TestBitReadBuffer_Read_Combination(t *testing.T) {
 			if n, err = r.Read(b); err != nil {
 				t.Fatalf("BitReadBuffer happen error %v", err)
 			}
+			n *= 8
 		} else {
 			// test ReadBits
 			if n, err = r.ReadBits(b, tt.bits); err != nil {
@@ -407,8 +408,8 @@ func TestBitWriteBuffer_Write(t *testing.T) {
 			t.Fatalf("Write happen error %v", err)
 		}
 
-		if n != len(tt.data)*8 {
-			t.Fatalf("Write write size %d, want %d", n, len(tt.data)*8)
+		if n != len(tt.data) {
+			t.Fatalf("Write write size %d, want %d", n, len(tt.data))
 		}
 
 		if err = w.Flush(); err != nil {
@@ -459,6 +460,7 @@ func TestBitWriteBuffer_Write_Combination(t *testing.T) {
 			if n, err = w.Write(tt.data); err != nil {
 				t.Fatalf("BitWriteBuffer happen error %v", err)
 			}
+			n *= 8
 		} else {
 			// test WriteBits
 			if n, err = w.WriteBits(tt.data, tt.bits); err != nil {
