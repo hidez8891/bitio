@@ -177,6 +177,43 @@ func TestBitFieldReader_Read(t *testing.T) {
 	}
 }
 
+func TestBitFieldWriter_Write(t *testing.T) {
+	for _, tt := range tests {
+		var (
+			err error
+			n   int
+		)
+
+		ptr := tt.ptr
+		r := NewBitFieldReader(bytes.NewReader(tt.raw))
+		if _, err = r.Read(ptr); err != nil {
+			rt := reflect.TypeOf(ptr)
+			t.Fatalf("Write test initialize %v error: %v", rt, err)
+		}
+
+		b := bytes.NewBuffer([]byte{})
+		w := NewBitFieldWriter(b)
+		if n, err = w.Write(ptr); err != nil {
+			rt := reflect.TypeOf(ptr)
+			t.Fatalf("Write %v error: %v", rt, err)
+		}
+
+		if n != tt.bits {
+			rt := reflect.TypeOf(ptr)
+			t.Fatalf("Write %v write size %d, want %d", rt, n, tt.bits)
+		}
+
+		if err = w.Flush(); err != nil {
+			t.Fatalf("Write flush happen error %v", err)
+		}
+
+		if reflect.DeepEqual(b.Bytes(), tt.raw) == false {
+			rt := reflect.TypeOf(ptr)
+			t.Fatalf("%v write %v, want %v", rt, b.Bytes(), tt.raw)
+		}
+	}
+}
+
 func toStrCompare(a, b interface{}) bool {
 	as := fmt.Sprintf("%v", a)
 	bs := fmt.Sprintf("%v", b)

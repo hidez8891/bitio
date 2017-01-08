@@ -98,6 +98,100 @@ func (obj *BitFieldReader) Read(p interface{}) (nBit int, err error) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// NewBitFieldWriter returns BitFieldWriter
+func NewBitFieldWriter(w io.Writer) *BitFieldWriter {
+	return NewBitFieldWriter2(NewBitWriteBuffer(w))
+}
+
+// NewBitFieldWriter2 returns BitFieldWriter
+func NewBitFieldWriter2(w BitWriter) *BitFieldWriter {
+	return &BitFieldWriter{
+		w: w,
+	}
+}
+
+// BitFieldWriter write bit-field data.
+type BitFieldWriter struct {
+	w BitWriter
+}
+
+// Write writes bit-field data and returns write size.
+// If error happen, err will be set.
+func (obj *BitFieldWriter) Write(p interface{}) (nBit int, err error) {
+	// check argument type
+	var rv reflect.Value
+	if rv = reflect.ValueOf(p); rv.Kind() == reflect.Ptr {
+		rv = rv.Elem()
+	}
+	if rv.Kind() != reflect.Struct {
+		err = fmt.Errorf("Write: argument wants to struct")
+	}
+	rt := rv.Type()
+
+	// write bit-fields
+	for i := 0; i < rv.NumField(); i++ {
+		field := rt.Field(i)
+		ptr := rv.Field(i)
+
+		// skip unexport field
+		if field.PkgPath != "" {
+			continue
+		}
+
+		// bit-field size
+		bits := 0
+		if v, ok := field.Tag.Lookup("byte"); ok {
+			if bits, err = strconv.Atoi(v); err != nil {
+				err = fmt.Errorf("%s has invalid size %q byte(s)", field.Name, v)
+			}
+			bits *= 8
+		} else if v, ok := field.Tag.Lookup("bit"); ok {
+			if bits, err = strconv.Atoi(v); err != nil {
+				err = fmt.Errorf("%s has invalid size %q bit(s)", field.Name, v)
+			}
+		} else {
+			err = fmt.Errorf("%s need size hint", field.Name)
+		}
+		if err != nil {
+			return
+		}
+
+		// bit-field block count
+		len := 0
+		if v, ok := field.Tag.Lookup("len"); ok {
+			if len, err = strconv.Atoi(v); err != nil {
+				err = fmt.Errorf("%s has invalid length %q", field.Name, v)
+			}
+		}
+		if err != nil {
+			return
+		}
+
+		// write bit-filed
+		var (
+			w fieldWriter
+			n int
+		)
+		if w, err = newFieldWriter(obj.w, ptr, bits, len); err != nil {
+			return
+		}
+		if n, err = w.write(); err != nil {
+			return
+		}
+		nBit += n
+	}
+
+	return
+}
+
+// Flush writes data if BitWriter is not empty.
+// If error happen, err will be set.
+func (obj *BitFieldWriter) Flush() error {
+	return obj.w.Flush()
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 type fieldReader interface {
 	read() (nBit int, err error)
 }
@@ -243,6 +337,161 @@ func (obj *fieldSliceReader) read() (nBit int, err error) {
 		}
 
 		if n, err = r.read(); err != nil {
+			return
+		}
+		nBit += n
+	}
+
+	return
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+type fieldWriter interface {
+	write() (nBit int, err error)
+}
+
+func newFieldWriter(w BitWriter, rv reflect.Value, bits, len int) (fw fieldWriter, err error) {
+	if bits < 1 {
+		return nil, fmt.Errorf("invalid bit-field size %d byte(s)", bits)
+	}
+
+	switch rv.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		fw = &fieldIntWriter{w, rv, bits}
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		fw = &fieldUintWriter{w, rv, bits}
+	case reflect.String:
+		fw = &fieldStringWriter{w, rv, bits}
+	case reflect.Slice:
+		if len < 1 {
+			return nil, fmt.Errorf("Slice type needs positive length")
+		}
+		fw = &fieldSliceWriter{w, rv, bits, len}
+	default:
+		return nil, fmt.Errorf("Not support bit-filed type %q", rv.Kind().String())
+	}
+
+	return
+}
+
+// fieldIntWriter implemented fieldWriter for Integer type
+type fieldIntWriter struct {
+	w    BitWriter
+	ptr  reflect.Value
+	bits int
+}
+
+func (obj *fieldIntWriter) write() (nBit int, err error) {
+	if obj.bits > 64 {
+		err = fmt.Errorf("bit-field size needs <= 64bit")
+		return
+	}
+
+	// TODO write negative value
+	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf, uint64(obj.ptr.Int()))
+
+	// little endian shift
+	// 12bit: 0x1203 -> 0x1230 -> 0x0123
+	if obj.bits%8 > 0 {
+		buf[obj.bits/8] <<= uint(8 - obj.bits%8)
+		rightShift(buf, uint(8-obj.bits%8))
+	}
+
+	if nBit, err = obj.w.WriteBits(buf, obj.bits); err != nil {
+		return
+	}
+	return
+}
+
+// fieldUintWriter implemented fieldWriter for Unsigned Integer type
+type fieldUintWriter struct {
+	w    BitWriter
+	ptr  reflect.Value
+	bits int
+}
+
+func (obj *fieldUintWriter) write() (nBit int, err error) {
+	if obj.bits > 64 {
+		err = fmt.Errorf("bit-field size needs <= 64bit")
+		return
+	}
+
+	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf, obj.ptr.Uint())
+
+	// little endian shift
+	// 12bit: 0x1203 -> 0x1230 -> 0x0123
+	if obj.bits%8 > 0 {
+		buf[obj.bits/8] <<= uint(8 - obj.bits%8)
+		rightShift(buf, uint(8-obj.bits%8))
+	}
+
+	if nBit, err = obj.w.WriteBits(buf, obj.bits); err != nil {
+		return
+	}
+	return
+}
+
+// fieldStringWriter implemented fieldWriter for String type
+type fieldStringWriter struct {
+	w    BitWriter
+	ptr  reflect.Value
+	bits int
+}
+
+func (obj *fieldStringWriter) write() (nBit int, err error) {
+	if obj.bits%8 != 0 {
+		err = fmt.Errorf("String type size needs to 8*n bits")
+		return
+	}
+
+	buf := []byte(obj.ptr.String())
+	if len(buf)*8 < obj.bits {
+		// padding
+		buf = append(buf, make([]byte, obj.bits/8-len(buf))...)
+	}
+	if len(buf)*8 > obj.bits {
+		err = fmt.Errorf("String size [%d] is over write size [%d]", len(buf)*8, obj.bits)
+		return
+	}
+
+	if nBit, err = obj.w.Write(buf); err != nil {
+		nBit *= 8
+		return
+	}
+	nBit *= 8
+	return
+}
+
+// fieldSliceWriter implemented fieldWriter for Slice type
+type fieldSliceWriter struct {
+	w    BitWriter
+	ptr  reflect.Value
+	bits int
+	len  int
+}
+
+func (obj *fieldSliceWriter) write() (nBit int, err error) {
+	if obj.len < 1 {
+		err = fmt.Errorf("Slice type needs positive length")
+		return
+	}
+
+	// write slice bit-fields
+	for i := 0; i < obj.len; i++ {
+		var (
+			w fieldWriter
+			n int
+		)
+
+		rv := obj.ptr.Index(i)
+		if w, err = newFieldWriter(obj.w, rv, obj.bits, 0); err != nil {
+			return
+		}
+
+		if n, err = w.write(); err != nil {
 			return
 		}
 		nBit += n
