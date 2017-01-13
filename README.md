@@ -9,6 +9,15 @@ bitio is Golang library for bit reader/writer.
 * string (fixed length)
 * slice (fixed length)
 
+## Syntax
+
+| Type              | Syntax          | Description                                   |
+|-------------------|-----------------|-----------------------------------------------|
+| field size (bit)  | `bit:"1"`       | value size is 1 bit.                          |
+| field size (byte) | `byte:"2"`      | value size is 2 bytes.                        |
+| array length      | `len:"3"`       | array is composed of 3 values.                |
+| endianness        | `endian:"big"`  | value is big-endian. (default: little-endian) |
+
 ## Example
 
 ### BitField Reader/Writer
