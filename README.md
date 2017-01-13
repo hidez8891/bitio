@@ -15,9 +15,10 @@ bitio is Golang library for bit reader/writer.
 
 ```go
 type Container struct {
-	Sign byte   `bit:"4"`           // 4bit
-	Size int    `bit:"4"`           // 4bit
-	Data []byte `byte:"1" len:"10"` // 1byte x 10
+	Sign byte   `bit:"4"`               // 4bit
+	Size int    `bit:"4"`               // 4bit
+	Data []byte `byte:"1" len:"10"`     // 1byte x 10
+	CRC  uint   `bit:"32" endian:"big"` // 32bit, big endian
 }
 
 func ReadContainer(r io.Reader) (*Container, error) {
