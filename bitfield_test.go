@@ -20,7 +20,7 @@ type TestBitFieldInt2 struct {
 }
 
 type TestBitFieldInt3 struct {
-	Val1 int `byte:"2" endian:"bit"`
+	Val1 int `byte:"2" endian:"big"`
 	Val2 int `byte:"2" endian:"little"`
 }
 
@@ -37,7 +37,7 @@ type TestBitFieldUint2 struct {
 }
 
 type TestBitFieldUint3 struct {
-	Val1 uint `byte:"2" endian:"bit"`
+	Val1 uint `byte:"2" endian:"big"`
 	Val2 uint `byte:"2" endian:"little"`
 }
 
