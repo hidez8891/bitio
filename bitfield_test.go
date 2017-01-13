@@ -19,6 +19,11 @@ type TestBitFieldInt2 struct {
 	Val3 int `bit:"1"`
 }
 
+type TestBitFieldInt3 struct {
+	Val1 int `byte:"2" endian:"big"`
+	Val2 int `byte:"2" endian:"little"`
+}
+
 type TestBitFieldUint1 struct {
 	Val1 uint `byte:"1"`
 	Val2 uint `byte:"2"`
@@ -29,6 +34,11 @@ type TestBitFieldUint2 struct {
 	Val1 uint `bit:"1"`
 	Val2 uint `bit:"14"`
 	Val3 uint `bit:"1"`
+}
+
+type TestBitFieldUint3 struct {
+	Val1 uint `byte:"2" endian:"big"`
+	Val2 uint `byte:"2" endian:"little"`
 }
 
 type TestBitFieldString1 struct {
@@ -81,6 +91,15 @@ var tests = []TestData{
 		bits: 16,
 	},
 	{
+		raw: []byte{0x0a, 0x01, 0x0a, 0x01},
+		ptr: &TestBitFieldInt3{},
+		exp: map[string]interface{}{
+			"Val1": 0x0a01,
+			"Val2": 0x010a,
+		},
+		bits: 32,
+	},
+	{
 		raw: []byte{0x0a, 0xff, 0x1c, 0xff, 0x01, 0x1c},
 		ptr: &TestBitFieldUint1{},
 		exp: map[string]interface{}{
@@ -99,6 +118,15 @@ var tests = []TestData{
 			"Val3": 0x1,    // 1
 		},
 		bits: 16,
+	},
+	{
+		raw: []byte{0x0a, 0x01, 0x0a, 0x01},
+		ptr: &TestBitFieldUint3{},
+		exp: map[string]interface{}{
+			"Val1": 0x0a01,
+			"Val2": 0x010a,
+		},
+		bits: 32,
 	},
 	{
 		raw: []byte{'0', 'a', 'b', 'c'},
