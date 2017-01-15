@@ -224,7 +224,7 @@ func newFieldReader(r BitReader, rv reflect.Value, bits, len, endian int) (fr fi
 
 	switch rv.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		fr = &fieldIntReader{r, rv, bits, endian}
+		fr = &fieldIntReader{&fieldUintReader{r, rv, bits, endian}}
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		fr = &fieldUintReader{r, rv, bits, endian}
 	case reflect.String:
@@ -243,38 +243,17 @@ func newFieldReader(r BitReader, rv reflect.Value, bits, len, endian int) (fr fi
 
 // fieldIntReader implemented fieldReader for Integer type
 type fieldIntReader struct {
-	r      BitReader
-	ptr    reflect.Value
-	bits   int
-	endian int
+	r *fieldUintReader
 }
 
 func (obj *fieldIntReader) read() (nBit int, err error) {
-	if obj.bits > 64 {
-		err = fmt.Errorf("bit-field size needs <= 64bit")
-		return
+	var value uint64
+
+	value, nBit, err = obj.r.readValue()
+	if err == nil {
+		obj.r.ptr.SetInt(int64(value))
 	}
 
-	buf := make([]byte, 8)
-	if nBit, err = obj.r.ReadBits(buf, obj.bits); err != nil {
-		return
-	}
-
-	if obj.endian == endianLittle {
-		// little endian shift
-		// 12bit: 0x0123 -> 0x1230 -> 0x1203
-		if nBit%8 > 0 {
-			leftShift(buf, uint(8-nBit%8))
-			buf[nBit/8] >>= uint(8 - nBit%8)
-		}
-
-		obj.ptr.SetInt(int64(binary.LittleEndian.Uint64(buf)))
-	} else {
-		// big endian shift
-		rightShift(buf, uint(8*8-nBit))
-
-		obj.ptr.SetInt(int64(binary.BigEndian.Uint64(buf)))
-	}
 	return
 }
 
@@ -286,7 +265,7 @@ type fieldUintReader struct {
 	endian int
 }
 
-func (obj *fieldUintReader) read() (nBit int, err error) {
+func (obj *fieldUintReader) readValue() (value uint64, nBit int, err error) {
 	if obj.bits > 64 {
 		err = fmt.Errorf("bit-field size needs <= 64bit")
 		return
@@ -305,13 +284,25 @@ func (obj *fieldUintReader) read() (nBit int, err error) {
 			buf[nBit/8] >>= uint(8 - nBit%8)
 		}
 
-		obj.ptr.SetUint(binary.LittleEndian.Uint64(buf))
+		value = binary.LittleEndian.Uint64(buf)
 	} else {
 		// big endian shift
 		rightShift(buf, uint(8*8-nBit))
 
-		obj.ptr.SetUint(binary.BigEndian.Uint64(buf))
+		value = binary.BigEndian.Uint64(buf)
 	}
+
+	return
+}
+
+func (obj *fieldUintReader) read() (nBit int, err error) {
+	var value uint64
+
+	value, nBit, err = obj.readValue()
+	if err == nil {
+		obj.ptr.SetUint(value)
+	}
+
 	return
 }
 
@@ -395,7 +386,7 @@ func newFieldWriter(w BitWriter, rv reflect.Value, bits, len, endian int) (fw fi
 
 	switch rv.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		fw = &fieldIntWriter{w, rv, bits, endian}
+		fw = &fieldIntWriter{&fieldUintWriter{w, rv, bits, endian}}
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		fw = &fieldUintWriter{w, rv, bits, endian}
 	case reflect.String:
@@ -414,39 +405,11 @@ func newFieldWriter(w BitWriter, rv reflect.Value, bits, len, endian int) (fw fi
 
 // fieldIntWriter implemented fieldWriter for Integer type
 type fieldIntWriter struct {
-	w      BitWriter
-	ptr    reflect.Value
-	bits   int
-	endian int
+	w *fieldUintWriter
 }
 
 func (obj *fieldIntWriter) write() (nBit int, err error) {
-	if obj.bits > 64 {
-		err = fmt.Errorf("bit-field size needs <= 64bit")
-		return
-	}
-	buf := make([]byte, 8)
-
-	if obj.endian == endianLittle {
-		binary.LittleEndian.PutUint64(buf, uint64(obj.ptr.Int()))
-
-		// little endian shift
-		// 12bit: 0x1203 -> 0x1230 -> 0x0123
-		if obj.bits%8 > 0 {
-			buf[obj.bits/8] <<= uint(8 - obj.bits%8)
-			rightShift(buf, uint(8-obj.bits%8))
-		}
-	} else {
-		binary.BigEndian.PutUint64(buf, uint64(obj.ptr.Int()))
-
-		// big endian shift
-		leftShift(buf, uint(8*8-obj.bits))
-	}
-
-	if nBit, err = obj.w.WriteBits(buf, obj.bits); err != nil {
-		return
-	}
-	return
+	return obj.w.writeValue(uint64(obj.w.ptr.Int()))
 }
 
 // fieldUintWriter implemented fieldWriter for Unsigned Integer type
@@ -457,7 +420,7 @@ type fieldUintWriter struct {
 	endian int
 }
 
-func (obj *fieldUintWriter) write() (nBit int, err error) {
+func (obj *fieldUintWriter) writeValue(value uint64) (nBit int, err error) {
 	if obj.bits > 64 {
 		err = fmt.Errorf("bit-field size needs <= 64bit")
 		return
@@ -465,7 +428,7 @@ func (obj *fieldUintWriter) write() (nBit int, err error) {
 	buf := make([]byte, 8)
 
 	if obj.endian == endianLittle {
-		binary.LittleEndian.PutUint64(buf, obj.ptr.Uint())
+		binary.LittleEndian.PutUint64(buf, value)
 
 		// little endian shift
 		// 12bit: 0x1203 -> 0x1230 -> 0x0123
@@ -474,7 +437,7 @@ func (obj *fieldUintWriter) write() (nBit int, err error) {
 			rightShift(buf, uint(8-obj.bits%8))
 		}
 	} else {
-		binary.BigEndian.PutUint64(buf, uint64(obj.ptr.Uint()))
+		binary.BigEndian.PutUint64(buf, value)
 
 		// big endian shift
 		leftShift(buf, uint(8*8-obj.bits))
@@ -483,7 +446,12 @@ func (obj *fieldUintWriter) write() (nBit int, err error) {
 	if nBit, err = obj.w.WriteBits(buf, obj.bits); err != nil {
 		return
 	}
+
 	return
+}
+
+func (obj *fieldUintWriter) write() (nBit int, err error) {
+	return obj.writeValue(obj.ptr.Uint())
 }
 
 // fieldStringWriter implemented fieldWriter for String type
