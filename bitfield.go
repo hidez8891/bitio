@@ -150,25 +150,25 @@ type fieldReader interface {
 	read() (nBit int, err error)
 }
 
-func newFieldReader(r BitReader, c *fieldConfig) (fr fieldReader, err error) {
-	if c.bits < 1 {
-		return nil, fmt.Errorf("invalid bit-field size %d byte(s)", c.bits)
+func newFieldReader(r BitReader, config *fieldConfig) (fr fieldReader, err error) {
+	if config.bits < 1 {
+		return nil, fmt.Errorf("invalid bit-field size %d byte(s)", config.bits)
 	}
 
-	switch c.ptr.Kind() {
+	switch config.ptr.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		fr = newFieldIntReader(r, c)
+		fr = newFieldIntReader(r, config)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		fr = newFieldUintReader(r, c)
+		fr = newFieldUintReader(r, config)
 	case reflect.String:
-		fr = newFieldStringReader(r, c)
+		fr = newFieldStringReader(r, config)
 	case reflect.Slice:
-		if c.len < 1 {
+		if config.len < 1 {
 			return nil, fmt.Errorf("Slice type needs positive length")
 		}
-		fr = newFieldSliceReader(r, c)
+		fr = newFieldSliceReader(r, config)
 	default:
-		return nil, fmt.Errorf("Not support bit-filed type %q", c.ptr.Kind().String())
+		return nil, fmt.Errorf("Not support bit-filed type %q", config.ptr.Kind().String())
 	}
 
 	return
@@ -179,9 +179,9 @@ type fieldIntReader struct {
 	r *fieldUintReader
 }
 
-func newFieldIntReader(r BitReader, c *fieldConfig) *fieldIntReader {
+func newFieldIntReader(r BitReader, config *fieldConfig) *fieldIntReader {
 	return &fieldIntReader{
-		r: newFieldUintReader(r, c),
+		r: newFieldUintReader(r, config),
 	}
 }
 
@@ -204,12 +204,12 @@ type fieldUintReader struct {
 	endian int
 }
 
-func newFieldUintReader(r BitReader, c *fieldConfig) *fieldUintReader {
+func newFieldUintReader(r BitReader, config *fieldConfig) *fieldUintReader {
 	return &fieldUintReader{
 		r:      r,
-		ptr:    c.ptr,
-		bits:   c.bits,
-		endian: c.endian,
+		ptr:    config.ptr,
+		bits:   config.bits,
+		endian: config.endian,
 	}
 }
 
@@ -261,11 +261,11 @@ type fieldStringReader struct {
 	bits int
 }
 
-func newFieldStringReader(r BitReader, c *fieldConfig) *fieldStringReader {
+func newFieldStringReader(r BitReader, config *fieldConfig) *fieldStringReader {
 	return &fieldStringReader{
 		r:    r,
-		ptr:  c.ptr,
-		bits: c.bits,
+		ptr:  config.ptr,
+		bits: config.bits,
 	}
 }
 
@@ -295,13 +295,13 @@ type fieldSliceReader struct {
 	endian int
 }
 
-func newFieldSliceReader(r BitReader, c *fieldConfig) *fieldSliceReader {
+func newFieldSliceReader(r BitReader, config *fieldConfig) *fieldSliceReader {
 	return &fieldSliceReader{
 		r:      r,
-		ptr:    c.ptr,
-		bits:   c.bits,
-		len:    c.len,
-		endian: c.endian,
+		ptr:    config.ptr,
+		bits:   config.bits,
+		len:    config.len,
+		endian: config.endian,
 	}
 }
 
@@ -408,25 +408,25 @@ type fieldWriter interface {
 	write() (nBit int, err error)
 }
 
-func newFieldWriter(w BitWriter, c *fieldConfig) (fw fieldWriter, err error) {
-	if c.bits < 1 {
-		return nil, fmt.Errorf("invalid bit-field size %d byte(s)", c.bits)
+func newFieldWriter(w BitWriter, config *fieldConfig) (fw fieldWriter, err error) {
+	if config.bits < 1 {
+		return nil, fmt.Errorf("invalid bit-field size %d byte(s)", config.bits)
 	}
 
-	switch c.ptr.Kind() {
+	switch config.ptr.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		fw = newFieldIntWriter(w, c)
+		fw = newFieldIntWriter(w, config)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		fw = newFieldUintWriter(w, c)
+		fw = newFieldUintWriter(w, config)
 	case reflect.String:
-		fw = newFieldStringWriter(w, c)
+		fw = newFieldStringWriter(w, config)
 	case reflect.Slice:
-		if c.len < 1 {
+		if config.len < 1 {
 			return nil, fmt.Errorf("Slice type needs positive length")
 		}
-		fw = newFieldSliceWriter(w, c)
+		fw = newFieldSliceWriter(w, config)
 	default:
-		return nil, fmt.Errorf("Not support bit-filed type %q", c.ptr.Kind().String())
+		return nil, fmt.Errorf("Not support bit-filed type %q", config.ptr.Kind().String())
 	}
 
 	return
@@ -437,9 +437,9 @@ type fieldIntWriter struct {
 	w *fieldUintWriter
 }
 
-func newFieldIntWriter(w BitWriter, c *fieldConfig) *fieldIntWriter {
+func newFieldIntWriter(w BitWriter, config *fieldConfig) *fieldIntWriter {
 	return &fieldIntWriter{
-		w: newFieldUintWriter(w, c),
+		w: newFieldUintWriter(w, config),
 	}
 }
 
@@ -455,12 +455,12 @@ type fieldUintWriter struct {
 	endian int
 }
 
-func newFieldUintWriter(w BitWriter, c *fieldConfig) *fieldUintWriter {
+func newFieldUintWriter(w BitWriter, config *fieldConfig) *fieldUintWriter {
 	return &fieldUintWriter{
 		w:      w,
-		ptr:    c.ptr,
-		bits:   c.bits,
-		endian: c.endian,
+		ptr:    config.ptr,
+		bits:   config.bits,
+		endian: config.endian,
 	}
 }
 
@@ -505,11 +505,11 @@ type fieldStringWriter struct {
 	bits int
 }
 
-func newFieldStringWriter(w BitWriter, c *fieldConfig) *fieldStringWriter {
+func newFieldStringWriter(w BitWriter, config *fieldConfig) *fieldStringWriter {
 	return &fieldStringWriter{
 		w:    w,
-		ptr:  c.ptr,
-		bits: c.bits,
+		ptr:  config.ptr,
+		bits: config.bits,
 	}
 }
 
@@ -546,13 +546,13 @@ type fieldSliceWriter struct {
 	endian int
 }
 
-func newFieldSliceWriter(w BitWriter, c *fieldConfig) *fieldSliceWriter {
+func newFieldSliceWriter(w BitWriter, config *fieldConfig) *fieldSliceWriter {
 	return &fieldSliceWriter{
 		w:      w,
-		ptr:    c.ptr,
-		bits:   c.bits,
-		len:    c.len,
-		endian: c.endian,
+		ptr:    config.ptr,
+		bits:   config.bits,
+		len:    config.len,
+		endian: config.endian,
 	}
 }
 
