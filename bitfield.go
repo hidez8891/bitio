@@ -8,11 +8,6 @@ import (
 	"strconv"
 )
 
-const (
-	endianBig    = 0
-	endianLittle = 1
-)
-
 // NewBitFieldReader returns BitFieldReader
 func NewBitFieldReader(r io.Reader) *BitFieldReader {
 	return NewBitFieldReader2(NewBitReadBuffer(r))
@@ -55,41 +50,10 @@ func (obj *BitFieldReader) Read(p interface{}) (nBit int, err error) {
 			continue
 		}
 
-		// bit-field size
-		bits := 0
-		if v, ok := field.Tag.Lookup("byte"); ok {
-			if bits, err = strconv.Atoi(v); err != nil {
-				err = fmt.Errorf("%s has invalid size %q byte(s)", field.Name, v)
-			}
-			bits *= 8
-		} else if v, ok := field.Tag.Lookup("bit"); ok {
-			if bits, err = strconv.Atoi(v); err != nil {
-				err = fmt.Errorf("%s has invalid size %q bit(s)", field.Name, v)
-			}
-		} else {
-			err = fmt.Errorf("%s need size hint", field.Name)
-		}
-		if err != nil {
+		// read field configration
+		var config *fieldConfig
+		if config, err = readFieldConfig(ptr, field); err != nil {
 			return
-		}
-
-		// bit-field block count
-		len := 0
-		if v, ok := field.Tag.Lookup("len"); ok {
-			if len, err = strconv.Atoi(v); err != nil {
-				err = fmt.Errorf("%s has invalid length %q", field.Name, v)
-			}
-		}
-		if err != nil {
-			return
-		}
-
-		// bit-field endian
-		endian := endianLittle
-		if v, ok := field.Tag.Lookup("endian"); ok {
-			if v == "big" {
-				endian = endianBig
-			}
 		}
 
 		// read bit-filed
@@ -97,7 +61,7 @@ func (obj *BitFieldReader) Read(p interface{}) (nBit int, err error) {
 			r fieldReader
 			n int
 		)
-		if r, err = newFieldReader(obj.r, ptr, bits, len, endian); err != nil {
+		if r, err = newFieldReader(obj.r, config); err != nil {
 			return
 		}
 		if n, err = r.read(); err != nil {
@@ -151,41 +115,10 @@ func (obj *BitFieldWriter) Write(p interface{}) (nBit int, err error) {
 			continue
 		}
 
-		// bit-field size
-		bits := 0
-		if v, ok := field.Tag.Lookup("byte"); ok {
-			if bits, err = strconv.Atoi(v); err != nil {
-				err = fmt.Errorf("%s has invalid size %q byte(s)", field.Name, v)
-			}
-			bits *= 8
-		} else if v, ok := field.Tag.Lookup("bit"); ok {
-			if bits, err = strconv.Atoi(v); err != nil {
-				err = fmt.Errorf("%s has invalid size %q bit(s)", field.Name, v)
-			}
-		} else {
-			err = fmt.Errorf("%s need size hint", field.Name)
-		}
-		if err != nil {
+		// read field configration
+		var config *fieldConfig
+		if config, err = readFieldConfig(ptr, field); err != nil {
 			return
-		}
-
-		// bit-field block count
-		len := 0
-		if v, ok := field.Tag.Lookup("len"); ok {
-			if len, err = strconv.Atoi(v); err != nil {
-				err = fmt.Errorf("%s has invalid length %q", field.Name, v)
-			}
-		}
-		if err != nil {
-			return
-		}
-
-		// bit-field endian
-		endian := endianLittle
-		if v, ok := field.Tag.Lookup("endian"); ok {
-			if v == "big" {
-				endian = endianBig
-			}
 		}
 
 		// write bit-filed
@@ -193,7 +126,7 @@ func (obj *BitFieldWriter) Write(p interface{}) (nBit int, err error) {
 			w fieldWriter
 			n int
 		)
-		if w, err = newFieldWriter(obj.w, ptr, bits, len, endian); err != nil {
+		if w, err = newFieldWriter(obj.w, config); err != nil {
 			return
 		}
 		if n, err = w.write(); err != nil {
@@ -217,25 +150,25 @@ type fieldReader interface {
 	read() (nBit int, err error)
 }
 
-func newFieldReader(r BitReader, rv reflect.Value, bits, len, endian int) (fr fieldReader, err error) {
-	if bits < 1 {
-		return nil, fmt.Errorf("invalid bit-field size %d byte(s)", bits)
+func newFieldReader(r BitReader, c *fieldConfig) (fr fieldReader, err error) {
+	if c.bits < 1 {
+		return nil, fmt.Errorf("invalid bit-field size %d byte(s)", c.bits)
 	}
 
-	switch rv.Kind() {
+	switch c.ptr.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		fr = &fieldIntReader{&fieldUintReader{r, rv, bits, endian}}
+		fr = &fieldIntReader{&fieldUintReader{r, c.ptr, c.bits, c.endian}}
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		fr = &fieldUintReader{r, rv, bits, endian}
+		fr = &fieldUintReader{r, c.ptr, c.bits, c.endian}
 	case reflect.String:
-		fr = &fieldStringReader{r, rv, bits}
+		fr = &fieldStringReader{r, c.ptr, c.bits}
 	case reflect.Slice:
-		if len < 1 {
+		if c.len < 1 {
 			return nil, fmt.Errorf("Slice type needs positive length")
 		}
-		fr = &fieldSliceReader{r, rv, bits, len, endian}
+		fr = &fieldSliceReader{r, c.ptr, c.bits, c.len, c.endian}
 	default:
-		return nil, fmt.Errorf("Not support bit-filed type %q", rv.Kind().String())
+		return nil, fmt.Errorf("Not support bit-filed type %q", c.ptr.Kind().String())
 	}
 
 	return
@@ -359,8 +292,8 @@ func (obj *fieldSliceReader) read() (nBit int, err error) {
 			n int
 		)
 
-		rv := obj.ptr.Index(i)
-		if r, err = newFieldReader(obj.r, rv, obj.bits, 0, obj.endian); err != nil {
+		ptr := obj.ptr.Index(i)
+		if r, err = newFieldReader(obj.r, &fieldConfig{ptr, obj.bits, 0, obj.endian}); err != nil {
 			return
 		}
 
@@ -375,29 +308,92 @@ func (obj *fieldSliceReader) read() (nBit int, err error) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+const (
+	endianBig    = 0
+	endianLittle = 1
+)
+
+// fieldConfig store bit-field configration.
+type fieldConfig struct {
+	ptr    reflect.Value
+	bits   int
+	len    int
+	endian int
+}
+
+func readFieldConfig(ptr reflect.Value, field reflect.StructField) (*fieldConfig, error) {
+	var err error
+
+	// bit-field size
+	bits := 0
+	if v, ok := field.Tag.Lookup("byte"); ok {
+		if bits, err = strconv.Atoi(v); err != nil {
+			return nil, fmt.Errorf("%s has invalid size %q byte(s)", field.Name, v)
+		}
+		bits *= 8
+	} else if v, ok := field.Tag.Lookup("bit"); ok {
+		if bits, err = strconv.Atoi(v); err != nil {
+			return nil, fmt.Errorf("%s has invalid size %q bit(s)", field.Name, v)
+		}
+	} else {
+		return nil, fmt.Errorf("%s need size hint", field.Name)
+	}
+
+	// bit-field block count
+	len := 0
+	if v, ok := field.Tag.Lookup("len"); ok {
+		if len, err = strconv.Atoi(v); err != nil {
+			return nil, fmt.Errorf("%s has invalid length %q", field.Name, v)
+		}
+	}
+
+	// bit-field endian
+	endian := endianLittle
+	if v, ok := field.Tag.Lookup("endian"); ok {
+		switch v {
+		case "big":
+			endian = endianBig
+		case "little":
+			endian = endianLittle
+		default:
+			return nil, fmt.Errorf("%s has invalid endian %q", field.Name, v)
+		}
+	}
+
+	config := &fieldConfig{
+		ptr:    ptr,
+		bits:   bits,
+		len:    len,
+		endian: endian,
+	}
+	return config, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 type fieldWriter interface {
 	write() (nBit int, err error)
 }
 
-func newFieldWriter(w BitWriter, rv reflect.Value, bits, len, endian int) (fw fieldWriter, err error) {
-	if bits < 1 {
-		return nil, fmt.Errorf("invalid bit-field size %d byte(s)", bits)
+func newFieldWriter(w BitWriter, c *fieldConfig) (fw fieldWriter, err error) {
+	if c.bits < 1 {
+		return nil, fmt.Errorf("invalid bit-field size %d byte(s)", c.bits)
 	}
 
-	switch rv.Kind() {
+	switch c.ptr.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		fw = &fieldIntWriter{&fieldUintWriter{w, rv, bits, endian}}
+		fw = &fieldIntWriter{&fieldUintWriter{w, c.ptr, c.bits, c.endian}}
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		fw = &fieldUintWriter{w, rv, bits, endian}
+		fw = &fieldUintWriter{w, c.ptr, c.bits, c.endian}
 	case reflect.String:
-		fw = &fieldStringWriter{w, rv, bits}
+		fw = &fieldStringWriter{w, c.ptr, c.bits}
 	case reflect.Slice:
-		if len < 1 {
+		if c.len < 1 {
 			return nil, fmt.Errorf("Slice type needs positive length")
 		}
-		fw = &fieldSliceWriter{w, rv, bits, len, endian}
+		fw = &fieldSliceWriter{w, c.ptr, c.bits, c.len, c.endian}
 	default:
-		return nil, fmt.Errorf("Not support bit-filed type %q", rv.Kind().String())
+		return nil, fmt.Errorf("Not support bit-filed type %q", c.ptr.Kind().String())
 	}
 
 	return
@@ -507,8 +503,8 @@ func (obj *fieldSliceWriter) write() (nBit int, err error) {
 			n int
 		)
 
-		rv := obj.ptr.Index(i)
-		if w, err = newFieldWriter(obj.w, rv, obj.bits, 0, obj.endian); err != nil {
+		ptr := obj.ptr.Index(i)
+		if w, err = newFieldWriter(obj.w, &fieldConfig{ptr, obj.bits, 0, obj.endian}); err != nil {
 			return
 		}
 
