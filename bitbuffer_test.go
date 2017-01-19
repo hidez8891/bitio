@@ -2,6 +2,7 @@ package bitio
 
 import (
 	"bytes"
+	"io/ioutil"
 	"reflect"
 	"strconv"
 	"strings"
@@ -246,6 +247,53 @@ func TestBitReadBuffer_Read_Combination(t *testing.T) {
 				t.Fatalf("BitReadBuffer read data %x, want %x", b, tt.exp)
 			}
 		}
+	}
+}
+
+func BenchmarkBitReadBuffer_Read_FixedAlign_small(b *testing.B) {
+	readFixedAlign(b, 2<<5)
+}
+
+func BenchmarkBitReadBuffer_Read_NoFixedAlign_small(b *testing.B) {
+	readNoFixedAlign(b, 2<<5)
+}
+
+func BenchmarkBitReadBuffer_Read_FixedAlign_middle(b *testing.B) {
+	readFixedAlign(b, 2<<10)
+}
+
+func BenchmarkBitReadBuffer_Read_NoFixedAlign_middle(b *testing.B) {
+	readNoFixedAlign(b, 2<<10)
+}
+
+func BenchmarkBitReadBuffer_Read_FixedAlign_large(b *testing.B) {
+	readFixedAlign(b, 2<<16)
+}
+
+func BenchmarkBitReadBuffer_Read_NoFixedAlign_large(b *testing.B) {
+	readNoFixedAlign(b, 2<<16)
+}
+
+func readFixedAlign(b *testing.B, size int) {
+	r := NewBitReadBuffer(&Infinity{})
+	p := make([]byte, size)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r.Read(p)
+	}
+}
+
+func readNoFixedAlign(b *testing.B, size int) {
+	r := NewBitReadBuffer(&Infinity{})
+	p := make([]byte, size)
+
+	// put off align by 1bit
+	r.ReadBit(&p[0], 1)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r.Read(p)
 	}
 }
 
@@ -510,6 +558,53 @@ func TestBitWriteBuffer_Write_Combination(t *testing.T) {
 	}
 }
 
+func BenchmarkBitWriteBuffer_Write_FixedAlign_small(b *testing.B) {
+	writeFixedAlign(b, 2<<5)
+}
+
+func BenchmarkBitWriteBuffer_Write_NoFixedAlign_small(b *testing.B) {
+	writeNoFixedAlign(b, 2<<5)
+}
+
+func BenchmarkBitWriteBuffer_Write_FixedAlign_middle(b *testing.B) {
+	writeFixedAlign(b, 2<<10)
+}
+
+func BenchmarkBitWriteBuffer_Write_NoFixedAlign_middle(b *testing.B) {
+	writeNoFixedAlign(b, 2<<10)
+}
+
+func BenchmarkBitWriteBuffer_Write_FixedAlign_large(b *testing.B) {
+	writeFixedAlign(b, 2<<16)
+}
+
+func BenchmarkBitWriteBuffer_Write_NoFixedAlign_large(b *testing.B) {
+	writeNoFixedAlign(b, 2<<16)
+}
+
+func writeFixedAlign(b *testing.B, size int) {
+	p := make([]byte, size)
+	w := NewBitWriteBuffer(ioutil.Discard)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		w.Write(p)
+	}
+}
+
+func writeNoFixedAlign(b *testing.B, size int) {
+	p := make([]byte, size)
+	w := NewBitWriteBuffer(ioutil.Discard)
+
+	// put off align by 1bit
+	w.WriteBit(p[0], 1)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		w.Write(p)
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 func binaryToByteArray(str string) []byte {
@@ -527,4 +622,13 @@ func binaryToByteArray(str string) []byte {
 	}
 
 	return b
+}
+
+type Infinity struct{}
+
+func (obj *Infinity) Read(p []byte) (int, error) {
+	for i := 0; i < len(p); i++ {
+		p[i] = 0xed
+	}
+	return len(p), nil
 }
