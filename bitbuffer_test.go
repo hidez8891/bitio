@@ -249,6 +249,53 @@ func TestBitReadBuffer_Read_Combination(t *testing.T) {
 	}
 }
 
+func BenchmarkBitReadBuffer_Read_FixedAlign_small(b *testing.B) {
+	readFixedAlign(b, 2<<5)
+}
+
+func BenchmarkBitReadBuffer_Read_NoFixedAlign_small(b *testing.B) {
+	readNoFixedAlign(b, 2<<5)
+}
+
+func BenchmarkBitReadBuffer_Read_FixedAlign_middle(b *testing.B) {
+	readFixedAlign(b, 2<<10)
+}
+
+func BenchmarkBitReadBuffer_Read_NoFixedAlign_middle(b *testing.B) {
+	readNoFixedAlign(b, 2<<10)
+}
+
+func BenchmarkBitReadBuffer_Read_FixedAlign_large(b *testing.B) {
+	readFixedAlign(b, 2<<16)
+}
+
+func BenchmarkBitReadBuffer_Read_NoFixedAlign_large(b *testing.B) {
+	readNoFixedAlign(b, 2<<16)
+}
+
+func readFixedAlign(b *testing.B, size int) {
+	r := NewBitReadBuffer(&Infinity{})
+	p := make([]byte, size)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r.Read(p)
+	}
+}
+
+func readNoFixedAlign(b *testing.B, size int) {
+	r := NewBitReadBuffer(&Infinity{})
+	p := make([]byte, size)
+
+	// put off align by 1bit
+	r.ReadBit(&p[0], 1)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r.Read(p)
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 func TestBitWriteBuffer_WriteBit(t *testing.T) {
@@ -527,4 +574,13 @@ func binaryToByteArray(str string) []byte {
 	}
 
 	return b
+}
+
+type Infinity struct{}
+
+func (obj *Infinity) Read(p []byte) (int, error) {
+	for i := 0; i < len(p); i++ {
+		p[i] = 0xed
+	}
+	return len(p), nil
 }
