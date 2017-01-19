@@ -2,6 +2,7 @@ package bitio
 
 import (
 	"bytes"
+	"io/ioutil"
 	"reflect"
 	"strconv"
 	"strings"
@@ -554,6 +555,53 @@ func TestBitWriteBuffer_Write_Combination(t *testing.T) {
 		if reflect.DeepEqual(b.Bytes(), exp) == false {
 			t.Fatalf("BitWriteBuffer write data %x, want %x", b.Bytes(), exp)
 		}
+	}
+}
+
+func BenchmarkBitWriteBuffer_Write_FixedAlign_small(b *testing.B) {
+	writeFixedAlign(b, 2<<5)
+}
+
+func BenchmarkBitWriteBuffer_Write_NoFixedAlign_small(b *testing.B) {
+	writeNoFixedAlign(b, 2<<5)
+}
+
+func BenchmarkBitWriteBuffer_Write_FixedAlign_middle(b *testing.B) {
+	writeFixedAlign(b, 2<<10)
+}
+
+func BenchmarkBitWriteBuffer_Write_NoFixedAlign_middle(b *testing.B) {
+	writeNoFixedAlign(b, 2<<10)
+}
+
+func BenchmarkBitWriteBuffer_Write_FixedAlign_large(b *testing.B) {
+	writeFixedAlign(b, 2<<16)
+}
+
+func BenchmarkBitWriteBuffer_Write_NoFixedAlign_large(b *testing.B) {
+	writeNoFixedAlign(b, 2<<16)
+}
+
+func writeFixedAlign(b *testing.B, size int) {
+	p := make([]byte, size)
+	w := NewBitWriteBuffer(ioutil.Discard)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		w.Write(p)
+	}
+}
+
+func writeNoFixedAlign(b *testing.B, size int) {
+	p := make([]byte, size)
+	w := NewBitWriteBuffer(ioutil.Discard)
+
+	// put off align by 1bit
+	w.WriteBit(p[0], 1)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		w.Write(p)
 	}
 }
 
