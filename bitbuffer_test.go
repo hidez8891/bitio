@@ -278,6 +278,7 @@ func readFixedAlign(b *testing.B, size int) {
 	r := NewBitReadBuffer(&Infinity{})
 	p := make([]byte, size)
 
+	b.SetBytes(int64(size))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		r.Read(p)
@@ -291,6 +292,7 @@ func readNoFixedAlign(b *testing.B, size int) {
 	// put off align by 1bit
 	r.ReadBit(&p[0], 1)
 
+	b.SetBytes(int64(size))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		r.Read(p)
@@ -586,6 +588,7 @@ func writeFixedAlign(b *testing.B, size int) {
 	p := make([]byte, size)
 	w := NewBitWriteBuffer(ioutil.Discard)
 
+	b.SetBytes(int64(size))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		w.Write(p)
@@ -599,6 +602,7 @@ func writeNoFixedAlign(b *testing.B, size int) {
 	// put off align by 1bit
 	w.WriteBit(p[0], 1)
 
+	b.SetBytes(int64(size))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		w.Write(p)

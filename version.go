@@ -2,5 +2,5 @@ package bitio
 
 const (
 	Name    = "bitio"
-	Version = "1.3.2"
+	Version = "1.3.3"
 )
