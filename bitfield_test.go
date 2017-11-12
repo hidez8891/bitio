@@ -3,9 +3,19 @@ package bitio
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"reflect"
 	"testing"
 )
+
+func TestBitField_interface(t *testing.T) {
+	// Only compile test
+
+	var r io.Reader = &BitFieldReader{nil}
+	_ = r
+	var w io.Writer = &BitFieldWriter{nil}
+	_ = w
+}
 
 type TestBitFieldInt1 struct {
 	Val1 int `byte:"1"`

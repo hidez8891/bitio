@@ -25,6 +25,12 @@ type BitFieldReader struct {
 	r BitReader
 }
 
+// Read reads data and returns read size.
+// If error happen, err will be set.
+func (obj *BitFieldReader) Read(p []byte) (int, error) {
+	return obj.r.Read(p)
+}
+
 // ReadStruct reads bit-field data and returns read size.
 // If error happen, err will be set.
 func (obj *BitFieldReader) ReadStruct(p interface{}) (nBit int, err error) {
@@ -90,6 +96,12 @@ func NewBitFieldWriter2(w BitWriter) *BitFieldWriter {
 // BitFieldWriter write bit-field data.
 type BitFieldWriter struct {
 	w BitWriter
+}
+
+// Write writes data len(p) size and returns write size.
+// If error happen, err will be set.
+func (obj *BitFieldWriter) Write(p []byte) (int, error) {
+	return obj.w.Write(p)
 }
 
 // WriteStruct writes bit-field data and returns write size.
