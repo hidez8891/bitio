@@ -1,4 +1,4 @@
-package bitio
+package bitio_test
 
 import (
 	"bytes"
@@ -6,14 +6,16 @@ import (
 	"io"
 	"reflect"
 	"testing"
+
+	"github.com/hidez8891/bitio"
 )
 
 func TestBitField_interface(t *testing.T) {
 	// Only compile test
 
-	var r io.Reader = &BitFieldReader{nil}
+	var r io.Reader = &bitio.BitFieldReader{}
 	_ = r
-	var w io.Writer = &BitFieldWriter{nil}
+	var w io.Writer = &bitio.BitFieldWriter{}
 	_ = w
 }
 
@@ -179,7 +181,7 @@ var tests = []TestData{
 
 func TestBitFieldReader_Read(t *testing.T) {
 	for _, tt := range tests {
-		r := NewBitFieldReader(bytes.NewReader(tt.raw))
+		r := bitio.NewBitFieldReader(bytes.NewReader(tt.raw))
 		ptr := tt.ptr
 
 		var (
@@ -223,14 +225,14 @@ func TestBitFieldWriter_Write(t *testing.T) {
 		)
 
 		ptr := tt.ptr
-		r := NewBitFieldReader(bytes.NewReader(tt.raw))
+		r := bitio.NewBitFieldReader(bytes.NewReader(tt.raw))
 		if _, err = r.ReadStruct(ptr); err != nil {
 			rt := reflect.TypeOf(ptr)
 			t.Fatalf("Write test initialize %v error: %v", rt, err)
 		}
 
 		b := bytes.NewBuffer([]byte{})
-		w := NewBitFieldWriter(b)
+		w := bitio.NewBitFieldWriter(b)
 		if n, err = w.WriteStruct(ptr); err != nil {
 			rt := reflect.TypeOf(ptr)
 			t.Fatalf("Write %v error: %v", rt, err)

@@ -1,4 +1,4 @@
-package bitio
+package bitio_test
 
 import (
 	"bytes"
@@ -8,19 +8,21 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/hidez8891/bitio"
 )
 
 func TestBit_interface(t *testing.T) {
 	// Only compile test
 
-	r := &BitReadBuffer{}
-	var r1 BitReader = r
+	r := &bitio.BitReadBuffer{}
+	var r1 bitio.BitReader = r
 	_ = r1
 	var r2 io.Reader = r
 	_ = r2
 
-	w := &BitWriteBuffer{}
-	var w1 BitWriter = w
+	w := &bitio.BitWriteBuffer{}
+	var w1 bitio.BitWriter = w
 	_ = w1
 	var w2 io.Writer = w
 	_ = w2
@@ -42,7 +44,7 @@ func TestBitReadBuffer_ReadBit(t *testing.T) {
 		var b byte
 		var err error
 
-		r := NewBitReadBuffer(bytes.NewReader(tt.data))
+		r := bitio.NewBitReadBuffer(bytes.NewReader(tt.data))
 		if n, err = r.ReadBit(&b, tt.bits); err != nil {
 			t.Fatalf("ReadBit happen error %v", err)
 		}
@@ -66,7 +68,7 @@ func TestBitReadBuffer_ReadBit_Loop(t *testing.T) {
 		"00101"
 	data := binaryToByteArray(str)
 
-	r := NewBitReadBuffer(bytes.NewReader(data))
+	r := bitio.NewBitReadBuffer(bytes.NewReader(data))
 	for i := 1; i <= 5; i++ {
 		var n int
 		var b byte
@@ -105,7 +107,7 @@ func TestBitReadBuffer_ReadBits(t *testing.T) {
 		var b []byte
 		var err error
 
-		r := NewBitReadBuffer(bytes.NewReader(tt.data))
+		r := bitio.NewBitReadBuffer(bytes.NewReader(tt.data))
 		b = make([]byte, (tt.bits+7)/8)
 
 		if n, err = r.ReadBits(b, tt.bits); err != nil {
@@ -136,7 +138,7 @@ func TestBitReadBuffer_ReadBits_Loop(t *testing.T) {
 		"0000001010"
 	data := binaryToByteArray(str)
 
-	r := NewBitReadBuffer(bytes.NewReader(data))
+	r := bitio.NewBitReadBuffer(bytes.NewReader(data))
 	for i := 1; i <= 10; i++ {
 		var n int
 		var err error
@@ -178,7 +180,7 @@ func TestBitReadBuffer_Read(t *testing.T) {
 		var b []byte
 		var err error
 
-		r := NewBitReadBuffer(bytes.NewReader(tt.data))
+		r := bitio.NewBitReadBuffer(bytes.NewReader(tt.data))
 		b = make([]byte, tt.size)
 
 		if n, err = r.Read(b); err != nil {
@@ -229,7 +231,7 @@ func TestBitReadBuffer_Read_Combination(t *testing.T) {
 	for i := 0; i < len(tests); i++ {
 		data := datas[i]
 		test := tests[i]
-		r := NewBitReadBuffer(bytes.NewReader(data))
+		r := bitio.NewBitReadBuffer(bytes.NewReader(data))
 
 		for _, tt := range test {
 			var n int
@@ -292,7 +294,7 @@ func BenchmarkBitReadBuffer_Read_NoFixedAlign_large(b *testing.B) {
 }
 
 func readFixedAlign(b *testing.B, size int) {
-	r := NewBitReadBuffer(&Infinity{})
+	r := bitio.NewBitReadBuffer(&Infinity{})
 	p := make([]byte, size)
 
 	b.SetBytes(int64(size))
@@ -303,7 +305,7 @@ func readFixedAlign(b *testing.B, size int) {
 }
 
 func readNoFixedAlign(b *testing.B, size int) {
-	r := NewBitReadBuffer(&Infinity{})
+	r := bitio.NewBitReadBuffer(&Infinity{})
 	p := make([]byte, size)
 
 	// put off align by 1bit
@@ -334,7 +336,7 @@ func TestBitWriteBuffer_WriteBit(t *testing.T) {
 		var err error
 
 		b := bytes.NewBuffer([]byte{})
-		w := NewBitWriteBuffer(b)
+		w := bitio.NewBitWriteBuffer(b)
 		if n, err = w.WriteBit(tt.data, tt.bits); err != nil {
 			t.Fatalf("WriteBit happen error %v", err)
 		}
@@ -362,7 +364,7 @@ func TestBitWriteBuffer_WriteBit_Loop(t *testing.T) {
 	exp := binaryToByteArray(str)
 
 	b := bytes.NewBuffer([]byte{})
-	w := NewBitWriteBuffer(b)
+	w := bitio.NewBitWriteBuffer(b)
 	for i := 1; i <= 5; i++ {
 		var n int
 		var err error
@@ -404,7 +406,7 @@ func TestBitWriteBuffer_WriteBits(t *testing.T) {
 		var err error
 
 		b := bytes.NewBuffer([]byte{})
-		w := NewBitWriteBuffer(b)
+		w := bitio.NewBitWriteBuffer(b)
 
 		if n, err = w.WriteBits(tt.data, tt.bits); err != nil {
 			t.Fatalf("WriteBits happen error %v", err)
@@ -439,7 +441,7 @@ func TestBitWriteBuffer_WriteBits_Loop(t *testing.T) {
 	exp := binaryToByteArray(str)
 
 	b := bytes.NewBuffer([]byte{})
-	w := NewBitWriteBuffer(b)
+	w := bitio.NewBitWriteBuffer(b)
 	for i := 1; i <= 10; i++ {
 		var n int
 		var err error
@@ -483,7 +485,7 @@ func TestBitWriteBuffer_Write(t *testing.T) {
 		var err error
 
 		b := bytes.NewBuffer([]byte{})
-		w := NewBitWriteBuffer(b)
+		w := bitio.NewBitWriteBuffer(b)
 
 		if n, err = w.Write(tt.data); err != nil {
 			t.Fatalf("Write happen error %v", err)
@@ -538,7 +540,7 @@ func TestBitWriteBuffer_Write_Combination(t *testing.T) {
 		exp := exps[i]
 		test := tests[i]
 		b := bytes.NewBuffer([]byte{})
-		w := NewBitWriteBuffer(b)
+		w := bitio.NewBitWriteBuffer(b)
 
 		for _, tt := range test {
 			var n int
@@ -603,7 +605,7 @@ func BenchmarkBitWriteBuffer_Write_NoFixedAlign_large(b *testing.B) {
 
 func writeFixedAlign(b *testing.B, size int) {
 	p := make([]byte, size)
-	w := NewBitWriteBuffer(ioutil.Discard)
+	w := bitio.NewBitWriteBuffer(ioutil.Discard)
 
 	b.SetBytes(int64(size))
 	b.ResetTimer()
@@ -614,7 +616,7 @@ func writeFixedAlign(b *testing.B, size int) {
 
 func writeNoFixedAlign(b *testing.B, size int) {
 	p := make([]byte, size)
-	w := NewBitWriteBuffer(ioutil.Discard)
+	w := bitio.NewBitWriteBuffer(ioutil.Discard)
 
 	// put off align by 1bit
 	w.WriteBit(p[0], 1)
