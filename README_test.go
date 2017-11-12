@@ -1,28 +1,20 @@
-# bitio
+package bitio_test
 
-bitio is Golang library for bit reader/writer.
+import (
+	"io"
+	"testing"
 
-## Support Type
+	"github.com/hidez8891/bitio"
+)
 
-* int (int8 - int64)
-* uint (uint8 - uint64)
-* string (fixed length)
-* slice (fixed length)
+func TestReadMeSample(t *testing.T) {
+	// Only compile test
+}
 
-## Syntax
+/*
+ * BitField Reader/Writer
+ */
 
-| Type              | Syntax          | Description                                   |
-|-------------------|-----------------|-----------------------------------------------|
-| field size (bit)  | `bit:"1"`       | value size is 1 bit.                          |
-| field size (byte) | `byte:"2"`      | value size is 2 bytes.                        |
-| array length      | `len:"3"`       | array is composed of 3 values.                |
-| endianness        | `endian:"big"`  | value is big-endian. (default: little-endian) |
-
-## Example
-
-### BitField Reader/Writer
-
-```go
 type Container struct {
 	Sign byte   `bit:"4"`               // 4bit
 	Size int    `bit:"4"`               // 4bit
@@ -49,11 +41,11 @@ func WriteContainer(w io.Writer, c *Container) (nBit int, err error) {
 
 	return
 }
-```
 
-### Bit Reader/Writer
+/*
+ * Bit Reader/Writer
+ */
 
-```go
 func ReadBit(r io.Reader) {
 	br := bitio.NewBitReadBuffer(r)
 
@@ -84,4 +76,3 @@ func WriteBit(w io.Writer) {
 	b3 := []byte{0x01, 0x02}
 	bw.Write(b3)
 }
-```

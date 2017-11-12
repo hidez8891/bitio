@@ -3,9 +3,19 @@ package bitio
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"reflect"
 	"testing"
 )
+
+func TestBitField_interface(t *testing.T) {
+	// Only compile test
+
+	var r io.Reader = &BitFieldReader{nil}
+	_ = r
+	var w io.Writer = &BitFieldWriter{nil}
+	_ = w
+}
 
 type TestBitFieldInt1 struct {
 	Val1 int `byte:"1"`
@@ -177,7 +187,7 @@ func TestBitFieldReader_Read(t *testing.T) {
 			n   int
 		)
 
-		if n, err = r.Read(ptr); err != nil {
+		if n, err = r.ReadStruct(ptr); err != nil {
 			rt := reflect.TypeOf(ptr)
 			t.Fatalf("Read %v error: %v", rt, err)
 		}
@@ -214,14 +224,14 @@ func TestBitFieldWriter_Write(t *testing.T) {
 
 		ptr := tt.ptr
 		r := NewBitFieldReader(bytes.NewReader(tt.raw))
-		if _, err = r.Read(ptr); err != nil {
+		if _, err = r.ReadStruct(ptr); err != nil {
 			rt := reflect.TypeOf(ptr)
 			t.Fatalf("Write test initialize %v error: %v", rt, err)
 		}
 
 		b := bytes.NewBuffer([]byte{})
 		w := NewBitFieldWriter(b)
-		if n, err = w.Write(ptr); err != nil {
+		if n, err = w.WriteStruct(ptr); err != nil {
 			rt := reflect.TypeOf(ptr)
 			t.Fatalf("Write %v error: %v", rt, err)
 		}

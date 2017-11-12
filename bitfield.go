@@ -25,9 +25,15 @@ type BitFieldReader struct {
 	r BitReader
 }
 
-// Read reads bit-field data and returns read size.
+// Read reads data and returns read size.
 // If error happen, err will be set.
-func (obj *BitFieldReader) Read(p interface{}) (nBit int, err error) {
+func (obj *BitFieldReader) Read(p []byte) (int, error) {
+	return obj.r.Read(p)
+}
+
+// ReadStruct reads bit-field data and returns read size.
+// If error happen, err will be set.
+func (obj *BitFieldReader) ReadStruct(p interface{}) (nBit int, err error) {
 	// check argument type
 	var rv reflect.Value
 	if rv = reflect.ValueOf(p); rv.Kind() != reflect.Ptr {
@@ -92,9 +98,15 @@ type BitFieldWriter struct {
 	w BitWriter
 }
 
-// Write writes bit-field data and returns write size.
+// Write writes data len(p) size and returns write size.
 // If error happen, err will be set.
-func (obj *BitFieldWriter) Write(p interface{}) (nBit int, err error) {
+func (obj *BitFieldWriter) Write(p []byte) (int, error) {
+	return obj.w.Write(p)
+}
+
+// WriteStruct writes bit-field data and returns write size.
+// If error happen, err will be set.
+func (obj *BitFieldWriter) WriteStruct(p interface{}) (nBit int, err error) {
 	// check argument type
 	var rv reflect.Value
 	if rv = reflect.ValueOf(p); rv.Kind() == reflect.Ptr {

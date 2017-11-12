@@ -2,12 +2,29 @@ package bitio
 
 import (
 	"bytes"
+	"io"
 	"io/ioutil"
 	"reflect"
 	"strconv"
 	"strings"
 	"testing"
 )
+
+func TestBit_interface(t *testing.T) {
+	// Only compile test
+
+	r := &BitReadBuffer{}
+	var r1 BitReader = r
+	_ = r1
+	var r2 io.Reader = r
+	_ = r2
+
+	w := &BitWriteBuffer{}
+	var w1 BitWriter = w
+	_ = w1
+	var w2 io.Writer = w
+	_ = w2
+}
 
 func TestBitReadBuffer_ReadBit(t *testing.T) {
 	var tests = []struct {
