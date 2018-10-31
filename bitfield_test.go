@@ -74,6 +74,16 @@ type TestBitFieldCombination2 struct {
 	Val3 uint8  `bit:"4"`
 }
 
+type TestUintBoundaries struct {
+	Val1 uint16 `bit:"12" endian:"big"`
+	Val2 uint16 `bit:"12" endian:"big"`
+}
+
+type TestUintBoundaries2 struct {
+	Val1 uint16 `bit:"12" endian:"big"`
+	Val2 uint16 `bit:"12" endian:"little"`
+}
+
 type TestData struct {
 	raw  []byte
 	ptr  interface{}
@@ -176,6 +186,24 @@ var tests = []TestData{
 			"Val3": 0x1,
 		},
 		bits: 16,
+	},
+	{
+		raw: []byte{0x43, 0x52, 0x01},
+		ptr: &TestUintBoundaries{},
+		exp: map[string]interface{}{
+			"Val1": 0x435,
+			"Val2": 0x201,
+		},
+		bits: 24,
+	},
+	{
+		raw: []byte{0x43, 0x52, 0x01},
+		ptr: &TestUintBoundaries2{},
+		exp: map[string]interface{}{
+			"Val1": 0x435,
+			"Val2": 0x120,
+		},
+		bits: 24,
 	},
 }
 
