@@ -168,6 +168,8 @@ func newFieldReader(r BitReader, config *fieldConfig) (fr fieldReader, err error
 	}
 
 	switch config.ptr.Kind() {
+	case reflect.Bool:
+		fr = newFieldBoolReader(r, config)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		fr = newFieldIntReader(r, config)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
@@ -181,6 +183,28 @@ func newFieldReader(r BitReader, config *fieldConfig) (fr fieldReader, err error
 		fr = newFieldSliceReader(r, config)
 	default:
 		return nil, fmt.Errorf("Not support bit-filed type %q", config.ptr.Kind().String())
+	}
+
+	return
+}
+
+// fieldBoolReader implemented fieldReader for Bool type
+type fieldBoolReader struct {
+	r *fieldUintReader
+}
+
+func newFieldBoolReader(r BitReader, config *fieldConfig) *fieldBoolReader {
+	return &fieldBoolReader{
+		r: newFieldUintReader(r, config),
+	}
+}
+
+func (obj *fieldBoolReader) read() (nBit int, err error) {
+	var value uint64
+
+	value, nBit, err = obj.r.readValue()
+	if err == nil {
+		obj.r.ptr.SetBool(value != 0)
 	}
 
 	return
@@ -428,6 +452,8 @@ func newFieldWriter(w BitWriter, config *fieldConfig) (fw fieldWriter, err error
 	}
 
 	switch config.ptr.Kind() {
+	case reflect.Bool:
+		fw = newFieldBoolWriter(w, config)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		fw = newFieldIntWriter(w, config)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
@@ -444,6 +470,25 @@ func newFieldWriter(w BitWriter, config *fieldConfig) (fw fieldWriter, err error
 	}
 
 	return
+}
+
+// fieldBoolWriter implemented fieldWriter for Bool type
+type fieldBoolWriter struct {
+	w *fieldUintWriter
+}
+
+func newFieldBoolWriter(w BitWriter, config *fieldConfig) *fieldBoolWriter {
+	return &fieldBoolWriter{
+		w: newFieldUintWriter(w, config),
+	}
+}
+
+func (obj *fieldBoolWriter) write() (nBit int, err error) {
+	value := 0
+	if obj.w.ptr.Bool() == true {
+		value = 1
+	}
+	return obj.w.writeValue(uint64(value))
 }
 
 // fieldIntWriter implemented fieldWriter for Integer type
