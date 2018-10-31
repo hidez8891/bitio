@@ -19,6 +19,16 @@ func TestBitField_interface(t *testing.T) {
 	_ = w
 }
 
+type TestBitFieldBool1 struct {
+	Val1 bool `bit:"1"`
+	Val2 bool `bit:"1"`
+}
+
+type TestBitFieldBool2 struct {
+	Val1 bool `byte:"2" endian:"big"`
+	Val2 bool `byte:"2" endian:"little"`
+}
+
 type TestBitFieldInt1 struct {
 	Val1 int `byte:"1"`
 	Val2 int `byte:"2"`
@@ -92,6 +102,42 @@ type TestData struct {
 }
 
 var tests = []TestData{
+	{
+		raw: []byte{0x80},
+		ptr: &TestBitFieldBool1{},
+		exp: map[string]interface{}{
+			"Val1": true,
+			"Val2": false,
+		},
+		bits: 2,
+	},
+	{
+		raw: []byte{0x40},
+		ptr: &TestBitFieldBool1{},
+		exp: map[string]interface{}{
+			"Val1": false,
+			"Val2": true,
+		},
+		bits: 2,
+	},
+	{
+		raw: []byte{0x00, 0x01, 0x00, 0x00},
+		ptr: &TestBitFieldBool2{},
+		exp: map[string]interface{}{
+			"Val1": true,
+			"Val2": false,
+		},
+		bits: 32,
+	},
+	{
+		raw: []byte{0x00, 0x00, 0x01, 0x00},
+		ptr: &TestBitFieldBool2{},
+		exp: map[string]interface{}{
+			"Val1": false,
+			"Val2": true,
+		},
+		bits: 32,
+	},
 	{
 		raw: []byte{0x0a, 0xff, 0x1c, 0xff, 0x01, 0x1c},
 		ptr: &TestBitFieldInt1{},
