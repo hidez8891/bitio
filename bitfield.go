@@ -247,7 +247,9 @@ func (obj *fieldUintReader) readValue() (value uint64, nBit int, err error) {
 		value = binary.LittleEndian.Uint64(buf)
 	} else {
 		// big endian shift
-		rightShift(buf, uint(8*8-nBit))
+		// 12bit: 0x0123**** -> 0x****1230
+		nByte := (nBit + 7) / 8
+		rightShift(buf, uint(8*(8-nByte)))
 
 		value = binary.BigEndian.Uint64(buf)
 	}
