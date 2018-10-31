@@ -4,6 +4,7 @@ bitio is Golang library for bit reader/writer.
 
 ## Support Type
 
+* bool
 * int (int8 - int64)
 * uint (uint8 - uint64)
 * string (fixed length)
