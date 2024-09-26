@@ -3,7 +3,6 @@ package bitio_test
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"reflect"
 	"strconv"
 	"strings"
@@ -606,7 +605,7 @@ func BenchmarkBitWriteBuffer_Write_NoFixedAlign_large(b *testing.B) {
 
 func writeFixedAlign(b *testing.B, size int) {
 	p := make([]byte, size)
-	w := bitio.NewBitWriteBuffer(ioutil.Discard)
+	w := bitio.NewBitWriteBuffer(io.Discard)
 
 	b.SetBytes(int64(size))
 	b.ResetTimer()
@@ -617,7 +616,7 @@ func writeFixedAlign(b *testing.B, size int) {
 
 func writeNoFixedAlign(b *testing.B, size int) {
 	p := make([]byte, size)
-	w := bitio.NewBitWriteBuffer(ioutil.Discard)
+	w := bitio.NewBitWriteBuffer(io.Discard)
 
 	// put off align by 1bit
 	w.WriteBit(p[0], 1)
