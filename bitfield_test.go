@@ -356,6 +356,40 @@ func TestBitFieldWriter_Write(t *testing.T) {
 	}
 }
 
+func TestBitFieldWriter_Write_VariableLengthSlice(t *testing.T) {
+	ptr := &TestVariableLength2{
+		Val1: 0, // unset
+		Val2: []byte{0x01, 0x02, 0x03, 0x04, 0x05},
+	}
+	bits := 24
+	exp := []byte{0x51, 0x23, 0x45}
+
+	b := bytes.NewBuffer([]byte{})
+	w := bitio.NewBitFieldWriter(b)
+
+	var n int
+	var err error
+
+	if n, err = w.WriteStruct(ptr); err != nil {
+		rt := reflect.TypeOf(ptr)
+		t.Fatalf("Write %v error: %v", rt, err)
+	}
+
+	if n != bits {
+		rt := reflect.TypeOf(ptr)
+		t.Fatalf("Write %v write size %d, want %d", rt, n, bits)
+	}
+
+	if err = w.Flush(); err != nil {
+		t.Fatalf("Write flush happen error %v", err)
+	}
+
+	if reflect.DeepEqual(b.Bytes(), exp) == false {
+		rt := reflect.TypeOf(ptr)
+		t.Fatalf("%v write %v, want %v", rt, b.Bytes(), exp)
+	}
+}
+
 func toStrCompare(a, b interface{}) bool {
 	as := fmt.Sprintf("%v", a)
 	bs := fmt.Sprintf("%v", b)
