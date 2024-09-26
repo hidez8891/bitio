@@ -129,6 +129,7 @@ func (obj *BitFieldWriter) WriteStruct(p interface{}) (nBit int, err error) {
 	rt := rv.Type()
 
 	// write bit-fields
+	fieldValue := make(map[string]int)
 	for i := 0; i < rv.NumField(); i++ {
 		field := rt.Field(i)
 		ptr := rv.Field(i)
@@ -140,7 +141,7 @@ func (obj *BitFieldWriter) WriteStruct(p interface{}) (nBit int, err error) {
 
 		// read field configration
 		var config *fieldConfig
-		if config, err = readFieldConfig(ptr, field, nil); err != nil {
+		if config, err = readFieldConfig(ptr, field, fieldValue); err != nil {
 			return
 		}
 
@@ -156,6 +157,16 @@ func (obj *BitFieldWriter) WriteStruct(p interface{}) (nBit int, err error) {
 			return
 		}
 		nBit += n
+
+		// save value
+		switch field.Type.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			fieldValue[field.Name] = int(ptr.Int())
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			fieldValue[field.Name] = int(ptr.Uint())
+		default:
+			// unsave no number
+		}
 	}
 
 	return
@@ -405,10 +416,6 @@ type fieldConfig struct {
 
 func readFieldConfig(ptr reflect.Value, field reflect.StructField, fieldValue map[string]int) (*fieldConfig, error) {
 	var err error
-
-	if fieldValue == nil {
-		fieldValue = make(map[string]int) // dummy
-	}
 
 	// bit-field size
 	bits := 0

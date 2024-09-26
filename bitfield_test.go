@@ -99,6 +99,11 @@ type TestVariableLength struct {
 	Val2 []byte `byte:"1" len:"Val1"`
 }
 
+type TestVariableLength2 struct {
+	Val1 uint8  `bit:"4"`
+	Val2 []byte `bit:"4" len:"Val1"`
+}
+
 type TestData struct {
 	raw  []byte
 	ptr  interface{}
@@ -264,6 +269,15 @@ var tests = []TestData{
 			"Val2": []byte{0x11, 0x22, 0x33, 0x44, 0x55},
 		},
 		bits: 48,
+	},
+	{
+		raw: []byte{0x51, 0x23, 0x45},
+		ptr: &TestVariableLength2{},
+		exp: map[string]interface{}{
+			"Val1": 0x05,
+			"Val2": []byte{0x01, 0x02, 0x03, 0x04, 0x05},
+		},
+		bits: 24,
 	},
 }
 
