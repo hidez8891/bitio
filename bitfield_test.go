@@ -94,6 +94,11 @@ type TestUintBoundaries2 struct {
 	Val2 uint16 `bit:"12" endian:"little"`
 }
 
+type TestVariableLength struct {
+	Val1 uint8  `bit:"8"`
+	Val2 []byte `byte:"1" len:"Val1"`
+}
+
 type TestData struct {
 	raw  []byte
 	ptr  interface{}
@@ -250,6 +255,15 @@ var tests = []TestData{
 			"Val2": 0x120,
 		},
 		bits: 24,
+	},
+	{
+		raw: []byte{0x05, 0x11, 0x22, 0x33, 0x44, 0x55},
+		ptr: &TestVariableLength{},
+		exp: map[string]interface{}{
+			"Val1": 0x05,
+			"Val2": []byte{0x11, 0x22, 0x33, 0x44, 0x55},
+		},
+		bits: 48,
 	},
 }
 
