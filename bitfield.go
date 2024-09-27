@@ -47,6 +47,7 @@ func (obj *BitFieldReader) ReadStruct(p interface{}) (nBit int, err error) {
 	rt := rv.Type()
 
 	// read bit-fields
+	fieldValue := make(map[string]int)
 	for i := 0; i < rv.NumField(); i++ {
 		field := rt.Field(i)
 		ptr := rv.Field(i)
@@ -58,7 +59,7 @@ func (obj *BitFieldReader) ReadStruct(p interface{}) (nBit int, err error) {
 
 		// read field configration
 		var config *fieldConfig
-		if config, err = readFieldConfig(ptr, field); err != nil {
+		if config, err = readFieldConfig(ptr, field, fieldValue); err != nil {
 			return
 		}
 
@@ -74,6 +75,16 @@ func (obj *BitFieldReader) ReadStruct(p interface{}) (nBit int, err error) {
 			return
 		}
 		nBit += n
+
+		// save value
+		switch field.Type.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			fieldValue[field.Name] = int(ptr.Int())
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			fieldValue[field.Name] = int(ptr.Uint())
+		default:
+			// unsave no number
+		}
 	}
 
 	return
@@ -117,6 +128,31 @@ func (obj *BitFieldWriter) WriteStruct(p interface{}) (nBit int, err error) {
 	}
 	rt := rv.Type()
 
+	fieldValue := make(map[string]int)
+
+	// save slice length for length's variable
+	for i := 0; i < rv.NumField(); i++ {
+		field := rt.Field(i)
+		ptr := rv.Field(i)
+
+		// skip unexport field
+		if field.PkgPath != "" {
+			continue
+		}
+
+		// save slice length
+		switch field.Type.Kind() {
+		case reflect.Slice:
+			if v, ok := field.Tag.Lookup("len"); ok {
+				if _, err = strconv.Atoi(v); err != nil {
+					fieldValue[v] = ptr.Len()
+				}
+			}
+		default:
+			// nothing to do
+		}
+	}
+
 	// write bit-fields
 	for i := 0; i < rv.NumField(); i++ {
 		field := rt.Field(i)
@@ -129,8 +165,20 @@ func (obj *BitFieldWriter) WriteStruct(p interface{}) (nBit int, err error) {
 
 		// read field configration
 		var config *fieldConfig
-		if config, err = readFieldConfig(ptr, field); err != nil {
+		if config, err = readFieldConfig(ptr, field, fieldValue); err != nil {
 			return
+		}
+
+		// update value
+		if val, ok := fieldValue[field.Name]; ok {
+			switch field.Type.Kind() {
+			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+				ptr.SetInt(int64(val))
+			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+				ptr.SetUint(uint64(val))
+			default:
+				// nothing to do
+			}
 		}
 
 		// write bit-filed
@@ -392,7 +440,7 @@ type fieldConfig struct {
 	endian int
 }
 
-func readFieldConfig(ptr reflect.Value, field reflect.StructField) (*fieldConfig, error) {
+func readFieldConfig(ptr reflect.Value, field reflect.StructField, fieldValue map[string]int) (*fieldConfig, error) {
 	var err error
 
 	// bit-field size
@@ -413,7 +461,12 @@ func readFieldConfig(ptr reflect.Value, field reflect.StructField) (*fieldConfig
 	// bit-field block count
 	len := 0
 	if v, ok := field.Tag.Lookup("len"); ok {
-		if len, err = strconv.Atoi(v); err != nil {
+		if len, err = strconv.Atoi(v); err == nil {
+			// OK
+		} else if val, ok := fieldValue[v]; ok {
+			// OK
+			len = val
+		} else {
 			return nil, fmt.Errorf("%s has invalid length %q", field.Name, v)
 		}
 	}

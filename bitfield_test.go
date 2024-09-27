@@ -94,6 +94,16 @@ type TestUintBoundaries2 struct {
 	Val2 uint16 `bit:"12" endian:"little"`
 }
 
+type TestVariableLength struct {
+	Val1 uint8  `bit:"8"`
+	Val2 []byte `byte:"1" len:"Val1"`
+}
+
+type TestVariableLength2 struct {
+	Val1 uint8  `bit:"4"`
+	Val2 []byte `bit:"4" len:"Val1"`
+}
+
 type TestData struct {
 	raw  []byte
 	ptr  interface{}
@@ -251,6 +261,24 @@ var tests = []TestData{
 		},
 		bits: 24,
 	},
+	{
+		raw: []byte{0x05, 0x11, 0x22, 0x33, 0x44, 0x55},
+		ptr: &TestVariableLength{},
+		exp: map[string]interface{}{
+			"Val1": 0x05,
+			"Val2": []byte{0x11, 0x22, 0x33, 0x44, 0x55},
+		},
+		bits: 48,
+	},
+	{
+		raw: []byte{0x51, 0x23, 0x45},
+		ptr: &TestVariableLength2{},
+		exp: map[string]interface{}{
+			"Val1": 0x05,
+			"Val2": []byte{0x01, 0x02, 0x03, 0x04, 0x05},
+		},
+		bits: 24,
+	},
 }
 
 func TestBitFieldReader_Read(t *testing.T) {
@@ -325,6 +353,40 @@ func TestBitFieldWriter_Write(t *testing.T) {
 			rt := reflect.TypeOf(ptr)
 			t.Fatalf("%v write %v, want %v", rt, b.Bytes(), tt.raw)
 		}
+	}
+}
+
+func TestBitFieldWriter_Write_VariableLengthSlice(t *testing.T) {
+	ptr := &TestVariableLength2{
+		Val1: 0, // unset
+		Val2: []byte{0x01, 0x02, 0x03, 0x04, 0x05},
+	}
+	bits := 24
+	exp := []byte{0x51, 0x23, 0x45}
+
+	b := bytes.NewBuffer([]byte{})
+	w := bitio.NewBitFieldWriter(b)
+
+	var n int
+	var err error
+
+	if n, err = w.WriteStruct(ptr); err != nil {
+		rt := reflect.TypeOf(ptr)
+		t.Fatalf("Write %v error: %v", rt, err)
+	}
+
+	if n != bits {
+		rt := reflect.TypeOf(ptr)
+		t.Fatalf("Write %v write size %d, want %d", rt, n, bits)
+	}
+
+	if err = w.Flush(); err != nil {
+		t.Fatalf("Write flush happen error %v", err)
+	}
+
+	if reflect.DeepEqual(b.Bytes(), exp) == false {
+		rt := reflect.TypeOf(ptr)
+		t.Fatalf("%v write %v, want %v", rt, b.Bytes(), exp)
 	}
 }
 
