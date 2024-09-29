@@ -40,7 +40,8 @@ type BitReadBuffer struct {
 
 // ReadBit reads single data (bitSize) and returns read size.
 // If error happen, err will be set.
-// Read data is saved right justified. (4bit = 0x0f)
+// Input data is stored left justified. (4bit = 0xf0)
+// Output data is stored right justified. (4bit = 0x0f)
 func (obj *BitReadBuffer) ReadBit(b *byte, bitSize int) (nBit int, err error) {
 	if b == nil {
 		return 0, fmt.Errorf("bitio: argument *b is null pointer")
@@ -77,14 +78,15 @@ func (obj *BitReadBuffer) ReadBit(b *byte, bitSize int) (nBit int, err error) {
 
 // ReadBits reads data (bitSize) and returns read size.
 // If error happen, err will be set.
-// Read data is saved right justified. (12bit = 0x0f 0xff)
+// Input data is stored left justified. (12bit = 0xff 0xf0)
+// Output data is stored right justified. (12bit = 0x0f 0xff)
 func (obj *BitReadBuffer) ReadBits(p []byte, bitSize int) (nBit int, err error) {
 	if len(p)*8 < bitSize {
 		return 0, fmt.Errorf("bitio: argument p[] is %d bits, want %d bits", len(p)*8, bitSize)
 	}
 
 	if bitSize <= obj.left {
-		p[0] = obj.buff >> uint(8-bitSize)
+		p[len(p)-1] = obj.buff >> uint(8-bitSize)
 		nBit = bitSize
 
 		obj.buff <<= uint(bitSize)
@@ -92,29 +94,26 @@ func (obj *BitReadBuffer) ReadBits(p []byte, bitSize int) (nBit int, err error) 
 		return
 	}
 
-	byteSize := (bitSize + 7) / 8
-	readBitSize := bitSize - obj.left
-	readByte := (readBitSize + 7) / 8
+	readBit := bitSize - obj.left
+	readByte := (readBit + 7) / 8
 	pp := make([]byte, readByte)
 	if _, err = obj.r.Read(pp); err != nil {
 		return
 	}
-	nBit = bitSize
 
-	copy(p[:readByte], pp)
-	rightShift(p[:byteSize], uint(obj.left))
+	copy(p, pp)
+	rightShift(p, uint(obj.left))
 	p[0] |= obj.buff
-	if bitSize%8 > 0 {
-		rightShift(p[:byteSize], uint(8-bitSize%8))
-	}
+	rightShift(p, uint(8*len(p)-bitSize))
+
 	obj.buff = 0
 	obj.left = 0
-
-	if readBitSize%8 > 0 {
-		obj.left = 8 - readBitSize%8
+	if readBit%8 > 0 {
+		obj.left = 8 - readBit%8
 		obj.buff = pp[len(pp)-1] << uint(8-obj.left)
 	}
 
+	nBit = bitSize
 	return
 }
 
@@ -168,7 +167,8 @@ type BitWriteBuffer struct {
 
 // WriteBit writes single data (bitSize) and returns write size.
 // If error happen, err will be set.
-// Write data is used right justified. (4bit = 0x0f)
+// Input data is stored left justified. (4bit = 0x0f)
+// Output data is stored right justified. (4bit = 0xf0)
 func (obj *BitWriteBuffer) WriteBit(p byte, bitSize int) (nBit int, err error) {
 	p <<= uint(8 - bitSize)
 
@@ -201,38 +201,34 @@ func (obj *BitWriteBuffer) WriteBit(p byte, bitSize int) (nBit int, err error) {
 
 // WriteBits writes data (bitSize) and returns write size.
 // If error happen, err will be set.
-// Write data is used right justified. (12bit = 0x0f 0xff)
+// Input data is stored right justified. (12bit = 0x0f 0xff)
+// Output data is stored left justified. (12bit = 0xff 0xf0)
 func (obj *BitWriteBuffer) WriteBits(p []byte, bitSize int) (nBit int, err error) {
 	if len(p)*8 < bitSize {
 		return 0, fmt.Errorf("bitio: argument p[] is %d bits, want %d bits", len(p)*8, bitSize)
 	}
 
-	allBitSize := bitSize + obj.left
-	bitByte := (bitSize + 7) / 8
-	allByte := (allBitSize + 7) / 8
-	pp := make([]byte, allByte)
-	copy(pp[:bitByte], p[:bitByte])
+	byteSize := (bitSize + 7) / 8
+	buf := make([]byte, byteSize)
+	copy(buf, p[len(p)-byteSize:])
 
-	if bitSize%8 > 0 {
-		leftShift(pp, uint(8-bitSize%8))
-	}
-	rightShift(pp, uint(obj.left))
-	pp[0] |= obj.buff << uint(8-obj.left)
-	obj.buff = 0
-	obj.left = 0
-
-	if allBitSize%8 > 0 {
-		obj.left = allBitSize % 8
-		obj.buff = pp[len(pp)-1] >> uint(8-obj.left)
-		pp = pp[:len(pp)-1]
+	shift := uint(bitSize) % 8
+	if shift > 0 {
+		leftShift(buf, 8-shift)
+		buf[len(buf)-1] >>= 8 - shift
 	}
 
-	if allBitSize/8 > 0 {
-		if _, err = obj.w.Write(pp); err != nil {
+	for _, b := range buf {
+		var n int
+
+		n, err = obj.WriteBit(b, min(8, bitSize))
+		if err != nil {
 			return
 		}
+
+		bitSize -= n
+		nBit += n
 	}
-	nBit = bitSize
 
 	return
 }

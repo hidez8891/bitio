@@ -310,19 +310,17 @@ func (obj *fieldUintReader) readValue() (value uint64, nBit int, err error) {
 
 	if obj.endian == endianLittle {
 		// little endian shift
-		// 12bit: 0x0123 -> 0x1230 -> 0x1203
+		// 12bit: 0x123 = 0x*****231 -> 0x****2301 -> 0x2301****
 		if nBit%8 > 0 {
 			leftShift(buf, uint(8-nBit%8))
-			buf[nBit/8] >>= uint(8 - nBit%8)
+			buf[len(buf)-1] >>= uint(8 - nBit%8)
 		}
+		leftShift(buf, uint(8*(8-(nBit+7)/8)))
 
 		value = binary.LittleEndian.Uint64(buf)
 	} else {
-		// big endian shift
-		// 12bit: 0x0123**** -> 0x****1230
-		nByte := (nBit + 7) / 8
-		rightShift(buf, uint(8*(8-nByte)))
-
+		// big endian shift (no shift)
+		// 12bit: 0x123 = 0x*****123
 		value = binary.BigEndian.Uint64(buf)
 	}
 
@@ -587,18 +585,16 @@ func (obj *fieldUintWriter) writeValue(value uint64) (nBit int, err error) {
 		binary.LittleEndian.PutUint64(buf, value)
 
 		// little endian shift
-		// 12bit: 0x1203 -> 0x1230 -> 0x0123
+		// 12bit: 0x123 = 0x2301**** -> 0x****2301 -> 0x*****231
+		rightShift(buf, 8*uint(8-(obj.bits+7)/8))
 		if obj.bits%8 > 0 {
-			buf[obj.bits/8] <<= uint(8 - obj.bits%8)
+			buf[len(buf)-1] <<= uint(8 - obj.bits%8)
 			rightShift(buf, uint(8-obj.bits%8))
 		}
 	} else {
+		// big endian shift (no shift)
+		// 12bit: 0x123 = 0x****0123
 		binary.BigEndian.PutUint64(buf, value)
-
-		// big endian shift
-		// 12bit: 0x****0123 -> 0x0123****
-		nByte := (obj.bits + 7) / 8
-		leftShift(buf, uint(8*(8-nByte)))
 	}
 
 	if nBit, err = obj.w.WriteBits(buf, obj.bits); err != nil {
