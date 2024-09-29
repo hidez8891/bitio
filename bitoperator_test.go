@@ -23,7 +23,7 @@ func TestLeftShift(t *testing.T) {
 		leftShift(tt.src, tt.bits)
 
 		if reflect.DeepEqual(tt.src, tt.dst) == false {
-			t.Fatalf("leftShift returns %x, want %x", tt.src, tt.dst)
+			t.Fatalf("leftShift returns %#v, want %#v", tt.src, tt.dst)
 		}
 	}
 }
@@ -46,7 +46,7 @@ func TestRightShift(t *testing.T) {
 		rightShift(tt.src, tt.bits)
 
 		if reflect.DeepEqual(tt.src, tt.dst) == false {
-			t.Fatalf("rightShift returns %v, want %v", tt.src, tt.dst)
+			t.Fatalf("rightShift returns %#v, want %#v", tt.src, tt.dst)
 		}
 	}
 }
