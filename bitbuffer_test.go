@@ -33,9 +33,16 @@ func TestBitReadBuffer_ReadBit(t *testing.T) {
 		bits int
 		exp  byte
 	}{
+		// read bit (full bit)
 		{[]byte{0xff}, 1, 0x01},
+		{[]byte{0xff}, 4, 0x0f},
 		{[]byte{0xff}, 7, 0x7f},
 		{[]byte{0xff}, 8, 0xff},
+		// read bit
+		{[]byte{0xab}, 1, 0x01},
+		{[]byte{0xab}, 4, 0x0a},
+		{[]byte{0xab}, 7, 0x55},
+		{[]byte{0xab}, 8, 0xab},
 	}
 
 	for _, tt := range tests {
@@ -53,12 +60,13 @@ func TestBitReadBuffer_ReadBit(t *testing.T) {
 		}
 
 		if b != tt.exp {
-			t.Fatalf("ReadBit read data %x, want %x", b, tt.exp)
+			t.Fatalf("ReadBit read data %#v, want %#v", b, tt.exp)
 		}
 	}
 }
 
-func TestBitReadBuffer_ReadBit_Loop(t *testing.T) {
+func TestBitReadBuffer_ReadBit_nbit(t *testing.T) {
+	// read number N from N bit
 	str := "" +
 		"1" +
 		"10" +
@@ -93,13 +101,27 @@ func TestBitReadBuffer_ReadBits(t *testing.T) {
 		bits int
 		exp  []byte
 	}{
+		// read bit (full bit)
 		{[]byte{0xff, 0xff}, 1, []byte{0x01}},
 		{[]byte{0xff, 0xff}, 7, []byte{0x7f}},
 		{[]byte{0xff, 0xff}, 8, []byte{0xff}},
 		{[]byte{0xff, 0xff}, 9, []byte{0x01, 0xff}},
 		{[]byte{0xff, 0xff}, 15, []byte{0x7f, 0xff}},
 		{[]byte{0xff, 0xff}, 16, []byte{0xff, 0xff}},
-		{[]byte{0xfe, 0xdc}, 12, []byte{0x0f, 0xed}},
+		// read bit
+		{[]byte{0xab, 0xcd}, 1, []byte{0x01}},
+		{[]byte{0xab, 0xcd}, 7, []byte{0x55}},
+		{[]byte{0xab, 0xcd}, 8, []byte{0xab}},
+		{[]byte{0xab, 0xcd}, 9, []byte{0x01, 0x57}},
+		{[]byte{0xab, 0xcd}, 15, []byte{0x55, 0xe6}},
+		{[]byte{0xab, 0xcd}, 16, []byte{0xab, 0xcd}},
+		// read bit (over size buffer)
+		{[]byte{0xab, 0xcd}, 1, []byte{0x00, 0x00, 0x01}},
+		{[]byte{0xab, 0xcd}, 7, []byte{0x00, 0x00, 0x55}},
+		{[]byte{0xab, 0xcd}, 8, []byte{0x00, 0x00, 0xab}},
+		{[]byte{0xab, 0xcd}, 9, []byte{0x00, 0x01, 0x57}},
+		{[]byte{0xab, 0xcd}, 15, []byte{0x00, 0x55, 0xe6}},
+		{[]byte{0xab, 0xcd}, 16, []byte{0x00, 0xab, 0xcd}},
 	}
 
 	for _, tt := range tests {
@@ -108,7 +130,7 @@ func TestBitReadBuffer_ReadBits(t *testing.T) {
 		var err error
 
 		r := bitio.NewBitReadBuffer(bytes.NewReader(tt.data))
-		b = make([]byte, (tt.bits+7)/8)
+		b = make([]byte, len(tt.exp))
 
 		if n, err = r.ReadBits(b, tt.bits); err != nil {
 			t.Fatalf("ReadBits happen error %v", err)
@@ -119,12 +141,13 @@ func TestBitReadBuffer_ReadBits(t *testing.T) {
 		}
 
 		if reflect.DeepEqual(b, tt.exp) == false {
-			t.Fatalf("ReadBits read data %x, want %x", b, tt.exp)
+			t.Fatalf("ReadBits read data %#v, want %#v", b, tt.exp)
 		}
 	}
 }
 
-func TestBitReadBuffer_ReadBits_Loop(t *testing.T) {
+func TestBitReadBuffer_ReadBits_nbit(t *testing.T) {
+	// read number N from N bit
 	str := "" +
 		"1" +
 		"10" +
@@ -153,14 +176,10 @@ func TestBitReadBuffer_ReadBits_Loop(t *testing.T) {
 		}
 
 		exp := []byte{0x00, 0x00}
-		if i <= 8 {
-			exp[0] = byte(i)
-		} else {
-			exp[1] = byte(i)
-		}
+		exp[1] = byte(i)
 
 		if reflect.DeepEqual(b, exp) == false {
-			t.Fatalf("ReadBits read data %x, want %x", b, exp)
+			t.Fatalf("ReadBits read data %#v, want %#v", b, exp)
 		}
 	}
 }
@@ -171,8 +190,12 @@ func TestBitReadBuffer_Read(t *testing.T) {
 		size int
 		exp  []byte
 	}{
+		// read byte (full byte)
 		{[]byte{0xff, 0xff}, 1, []byte{0xff}},
 		{[]byte{0xff, 0xff}, 2, []byte{0xff, 0xff}},
+		// read byte
+		{[]byte{0x12, 0x34}, 1, []byte{0x12}},
+		{[]byte{0x12, 0x34}, 2, []byte{0x12, 0x34}},
 	}
 
 	for _, tt := range tests {
@@ -192,7 +215,7 @@ func TestBitReadBuffer_Read(t *testing.T) {
 		}
 
 		if reflect.DeepEqual(b, tt.exp) == false {
-			t.Fatalf("Read read data %x, want %x", b, tt.exp)
+			t.Fatalf("Read read data %#v, want %#v", b, tt.exp)
 		}
 	}
 }
@@ -206,7 +229,7 @@ func TestBitReadBuffer_Read_Combination(t *testing.T) {
 			"01_0111_0011" +
 			"01_0111_0011" +
 			"0011_0110"),
-		[]byte{0x97, 0x97},
+		{0x97, 0x97},
 	}
 
 	var tests = [][]struct {
@@ -263,55 +286,55 @@ func TestBitReadBuffer_Read_Combination(t *testing.T) {
 			}
 
 			if reflect.DeepEqual(b, tt.exp) == false {
-				t.Fatalf("BitReadBuffer read data %x, want %x", b, tt.exp)
+				t.Fatalf("BitReadBuffer read data %#v, want %#v", b, tt.exp)
 			}
 		}
 	}
 }
 
-func BenchmarkBitReadBuffer_Read_FixedAlign_small(b *testing.B) {
-	readFixedAlign(b, 2<<5)
+func BenchmarkBitReadBuffer_Read_Aligned_32b(b *testing.B) {
+	readAligned(b, 2<<5)
 }
 
-func BenchmarkBitReadBuffer_Read_NoFixedAlign_small(b *testing.B) {
-	readNoFixedAlign(b, 2<<5)
+func BenchmarkBitReadBuffer_Read_UnAligned_32b(b *testing.B) {
+	readUnAligned(b, 2<<5)
 }
 
-func BenchmarkBitReadBuffer_Read_FixedAlign_middle(b *testing.B) {
-	readFixedAlign(b, 2<<10)
+func BenchmarkBitReadBuffer_Read_Aligned_1024b(b *testing.B) {
+	readAligned(b, 2<<10)
 }
 
-func BenchmarkBitReadBuffer_Read_NoFixedAlign_middle(b *testing.B) {
-	readNoFixedAlign(b, 2<<10)
+func BenchmarkBitReadBuffer_Read_UnAligned_1024b(b *testing.B) {
+	readUnAligned(b, 2<<10)
 }
 
-func BenchmarkBitReadBuffer_Read_FixedAlign_large(b *testing.B) {
-	readFixedAlign(b, 2<<16)
+func BenchmarkBitReadBuffer_Read_Aligned_65536b(b *testing.B) {
+	readAligned(b, 2<<16)
 }
 
-func BenchmarkBitReadBuffer_Read_NoFixedAlign_large(b *testing.B) {
-	readNoFixedAlign(b, 2<<16)
+func BenchmarkBitReadBuffer_Read_UnAligned_65536b(b *testing.B) {
+	readUnAligned(b, 2<<16)
 }
 
-func readFixedAlign(b *testing.B, size int) {
+func readAligned(b *testing.B, bufSize int) {
 	r := bitio.NewBitReadBuffer(&Infinity{})
-	p := make([]byte, size)
+	p := make([]byte, bufSize)
 
-	b.SetBytes(int64(size))
+	b.SetBytes(int64(bufSize))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		r.Read(p)
 	}
 }
 
-func readNoFixedAlign(b *testing.B, size int) {
+func readUnAligned(b *testing.B, bufSize int) {
 	r := bitio.NewBitReadBuffer(&Infinity{})
-	p := make([]byte, size)
+	p := make([]byte, bufSize)
 
 	// put off align by 1bit
 	r.ReadBit(&p[0], 1)
 
-	b.SetBytes(int64(size))
+	b.SetBytes(int64(bufSize))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		r.Read(p)
@@ -326,9 +349,16 @@ func TestBitWriteBuffer_WriteBit(t *testing.T) {
 		bits int
 		exp  []byte
 	}{
+		// write bit (full bit)
 		{0xff, 1, []byte{0x80}},
+		{0xff, 4, []byte{0xf0}},
 		{0xff, 7, []byte{0xfe}},
 		{0xff, 8, []byte{0xff}},
+		// write bit
+		{0xab, 1, []byte{0x80}},
+		{0xab, 4, []byte{0xb0}},
+		{0xab, 7, []byte{0x56}},
+		{0xab, 8, []byte{0xab}},
 	}
 
 	for _, tt := range tests {
@@ -349,12 +379,13 @@ func TestBitWriteBuffer_WriteBit(t *testing.T) {
 		}
 
 		if reflect.DeepEqual(b.Bytes(), tt.exp) == false {
-			t.Fatalf("WriteBit write data %x, want %x", b.Bytes(), tt.exp)
+			t.Fatalf("WriteBit write data %#v, want %#v", b.Bytes(), tt.exp)
 		}
 	}
 }
 
-func TestBitWriteBuffer_WriteBit_Loop(t *testing.T) {
+func TestBitWriteBuffer_WriteBit_nbit(t *testing.T) {
+	// write number N to N bit
 	str := "" +
 		"1" +
 		"10" +
@@ -383,7 +414,7 @@ func TestBitWriteBuffer_WriteBit_Loop(t *testing.T) {
 	}
 
 	if reflect.DeepEqual(b.Bytes(), exp) == false {
-		t.Fatalf("WriteBit write data %x, want %x", b.Bytes(), exp)
+		t.Fatalf("WriteBit write data %#v, want %#v", b.Bytes(), exp)
 	}
 }
 
@@ -393,12 +424,20 @@ func TestBitWriteBuffer_WriteBits(t *testing.T) {
 		bits int
 		exp  []byte
 	}{
+		// write bit (full bit)
 		{[]byte{0xff, 0xff}, 1, []byte{0x80}},
 		{[]byte{0xff, 0xff}, 7, []byte{0xfe}},
 		{[]byte{0xff, 0xff}, 8, []byte{0xff}},
 		{[]byte{0xff, 0xff}, 9, []byte{0xff, 0x80}},
 		{[]byte{0xff, 0xff}, 15, []byte{0xff, 0xfe}},
 		{[]byte{0xff, 0xff}, 16, []byte{0xff, 0xff}},
+		// write bit
+		{[]byte{0xab, 0xcd}, 1, []byte{0x80}},
+		{[]byte{0xab, 0xcd}, 7, []byte{0x9a}},
+		{[]byte{0xab, 0xcd}, 8, []byte{0xcd}},
+		{[]byte{0xab, 0xcd}, 9, []byte{0xe6, 0x80}},
+		{[]byte{0xab, 0xcd}, 15, []byte{0x57, 0x9a}},
+		{[]byte{0xab, 0xcd}, 16, []byte{0xab, 0xcd}},
 	}
 
 	for _, tt := range tests {
@@ -421,12 +460,13 @@ func TestBitWriteBuffer_WriteBits(t *testing.T) {
 		}
 
 		if reflect.DeepEqual(b.Bytes(), tt.exp) == false {
-			t.Fatalf("WriteBits write data %x, want %x", b.Bytes(), tt.exp)
+			t.Fatalf("WriteBits write data %#v, want %#v", b.Bytes(), tt.exp)
 		}
 	}
 }
 
-func TestBitWriteBuffer_WriteBits_Loop(t *testing.T) {
+func TestBitWriteBuffer_WriteBits_nbit(t *testing.T) {
+	// write number N to N bit
 	str := "" +
 		"1" +
 		"10" +
@@ -446,12 +486,8 @@ func TestBitWriteBuffer_WriteBits_Loop(t *testing.T) {
 		var n int
 		var err error
 
-		data := []byte{0x00, 0x00}
-		if i <= 8 {
-			data[0] = byte(i)
-		} else {
-			data[1] = byte(i)
-		}
+		data := make([]byte, (i+7)/8)
+		data[len(data)-1] = byte(i)
 
 		if n, err = w.WriteBits(data, i); err != nil {
 			t.Fatalf("WriteBits happen error %v", err)
@@ -467,7 +503,7 @@ func TestBitWriteBuffer_WriteBits_Loop(t *testing.T) {
 	}
 
 	if reflect.DeepEqual(b.Bytes(), exp) == false {
-		t.Fatalf("WriteBits write data %x, want %x", b.Bytes(), exp)
+		t.Fatalf("WriteBits write data %#v, want %#v", b.Bytes(), exp)
 	}
 }
 
@@ -476,8 +512,12 @@ func TestBitWriteBuffer_Write(t *testing.T) {
 		data []byte
 		exp  []byte
 	}{
-		{[]byte{0xfe}, []byte{0xfe}},
-		{[]byte{0xff, 0xfe}, []byte{0xff, 0xfe}},
+		// write byte (full byte)
+		{[]byte{0xff}, []byte{0xff}},
+		{[]byte{0xff, 0xff}, []byte{0xff, 0xff}},
+		// write byte
+		{[]byte{0xab}, []byte{0xab}},
+		{[]byte{0xab, 0xcd}, []byte{0xab, 0xcd}},
 	}
 
 	for _, tt := range tests {
@@ -500,7 +540,7 @@ func TestBitWriteBuffer_Write(t *testing.T) {
 		}
 
 		if reflect.DeepEqual(b.Bytes(), tt.exp) == false {
-			t.Fatalf("Write write data %x, want %x", b.Bytes(), tt.exp)
+			t.Fatalf("Write write data %#v, want %#v", b.Bytes(), tt.exp)
 		}
 	}
 }
@@ -514,7 +554,7 @@ func TestBitWriteBuffer_Write_Combination(t *testing.T) {
 			"01_0111_0011" +
 			"01_0111_0011" +
 			"0011_0110"),
-		[]byte{0x97, 0x97},
+		{0x97, 0x97},
 	}
 
 	var tests = [][]struct {
@@ -574,54 +614,54 @@ func TestBitWriteBuffer_Write_Combination(t *testing.T) {
 		}
 
 		if reflect.DeepEqual(b.Bytes(), exp) == false {
-			t.Fatalf("BitWriteBuffer write data %x, want %x", b.Bytes(), exp)
+			t.Fatalf("BitWriteBuffer write data %#v, want %#v", b.Bytes(), exp)
 		}
 	}
 }
 
-func BenchmarkBitWriteBuffer_Write_FixedAlign_small(b *testing.B) {
-	writeFixedAlign(b, 2<<5)
+func BenchmarkBitWriteBuffer_Write_Aligned_32b(b *testing.B) {
+	writeAligned(b, 2<<5)
 }
 
-func BenchmarkBitWriteBuffer_Write_NoFixedAlign_small(b *testing.B) {
-	writeNoFixedAlign(b, 2<<5)
+func BenchmarkBitWriteBuffer_Write_UnAligned_32b(b *testing.B) {
+	writeUnAligned(b, 2<<5)
 }
 
-func BenchmarkBitWriteBuffer_Write_FixedAlign_middle(b *testing.B) {
-	writeFixedAlign(b, 2<<10)
+func BenchmarkBitWriteBuffer_Write_Aligned_1024b(b *testing.B) {
+	writeAligned(b, 2<<10)
 }
 
-func BenchmarkBitWriteBuffer_Write_NoFixedAlign_middle(b *testing.B) {
-	writeNoFixedAlign(b, 2<<10)
+func BenchmarkBitWriteBuffer_Write_UnAligned_1024b(b *testing.B) {
+	writeUnAligned(b, 2<<10)
 }
 
-func BenchmarkBitWriteBuffer_Write_FixedAlign_large(b *testing.B) {
-	writeFixedAlign(b, 2<<16)
+func BenchmarkBitWriteBuffer_Write_Aligned_65536b(b *testing.B) {
+	writeAligned(b, 2<<16)
 }
 
-func BenchmarkBitWriteBuffer_Write_NoFixedAlign_large(b *testing.B) {
-	writeNoFixedAlign(b, 2<<16)
+func BenchmarkBitWriteBuffer_Write_UnAligned_65536b(b *testing.B) {
+	writeUnAligned(b, 2<<16)
 }
 
-func writeFixedAlign(b *testing.B, size int) {
-	p := make([]byte, size)
+func writeAligned(b *testing.B, bufSize int) {
+	p := make([]byte, bufSize)
 	w := bitio.NewBitWriteBuffer(io.Discard)
 
-	b.SetBytes(int64(size))
+	b.SetBytes(int64(bufSize))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		w.Write(p)
 	}
 }
 
-func writeNoFixedAlign(b *testing.B, size int) {
-	p := make([]byte, size)
+func writeUnAligned(b *testing.B, bufSize int) {
+	p := make([]byte, bufSize)
 	w := bitio.NewBitWriteBuffer(io.Discard)
 
 	// put off align by 1bit
 	w.WriteBit(p[0], 1)
 
-	b.SetBytes(int64(size))
+	b.SetBytes(int64(bufSize))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		w.Write(p)

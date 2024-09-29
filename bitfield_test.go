@@ -163,7 +163,7 @@ var tests = []TestData{
 		ptr: &TestBitFieldInt2{},
 		exp: map[string]interface{}{
 			"Val1": 0x1,    // 1
-			"Val2": 0x0b2f, // 0010_1111 0010_11 [Little endian]
+			"Val2": 0x0b2f, // 0010_1111 00_1011 [Little endian]
 			"Val3": 0x1,    // 1
 		},
 		bits: 16,
@@ -192,7 +192,7 @@ var tests = []TestData{
 		ptr: &TestBitFieldUint2{},
 		exp: map[string]interface{}{
 			"Val1": 0x1,    // 1
-			"Val2": 0x0b2f, // 0010_1111 0010_11 [Little endian]
+			"Val2": 0x0b2f, // 0010_1111 00_1011 [Little endian]
 			"Val3": 0x1,    // 1
 		},
 		bits: 16,
@@ -286,10 +286,8 @@ func TestBitFieldReader_Read(t *testing.T) {
 		r := bitio.NewBitFieldReader(bytes.NewReader(tt.raw))
 		ptr := tt.ptr
 
-		var (
-			err error
-			n   int
-		)
+		var err error
+		var n int
 
 		if n, err = r.ReadStruct(ptr); err != nil {
 			rt := reflect.TypeOf(ptr)
@@ -313,7 +311,7 @@ func TestBitFieldReader_Read(t *testing.T) {
 
 			if toStrCompare(v, tt.exp[f.Name]) == false {
 				rt := reflect.TypeOf(ptr)
-				t.Fatalf("%v %s read %v, want %v", rt, f.Name, v, tt.exp[f.Name])
+				t.Fatalf("%v %s read %#v, want %#v", rt, f.Name, v, tt.exp[f.Name])
 			}
 		}
 	}
@@ -321,10 +319,8 @@ func TestBitFieldReader_Read(t *testing.T) {
 
 func TestBitFieldWriter_Write(t *testing.T) {
 	for _, tt := range tests {
-		var (
-			err error
-			n   int
-		)
+		var err error
+		var n int
 
 		ptr := tt.ptr
 		r := bitio.NewBitFieldReader(bytes.NewReader(tt.raw))
@@ -351,14 +347,14 @@ func TestBitFieldWriter_Write(t *testing.T) {
 
 		if reflect.DeepEqual(b.Bytes(), tt.raw) == false {
 			rt := reflect.TypeOf(ptr)
-			t.Fatalf("%v write %v, want %v", rt, b.Bytes(), tt.raw)
+			t.Fatalf("%v write %#v, want %#v", rt, b.Bytes(), tt.raw)
 		}
 	}
 }
 
 func TestBitFieldWriter_Write_VariableLengthSlice(t *testing.T) {
 	ptr := &TestVariableLength2{
-		Val1: 0, // unset
+		Val1: 0, // unset length
 		Val2: []byte{0x01, 0x02, 0x03, 0x04, 0x05},
 	}
 	bits := 24
@@ -367,8 +363,8 @@ func TestBitFieldWriter_Write_VariableLengthSlice(t *testing.T) {
 	b := bytes.NewBuffer([]byte{})
 	w := bitio.NewBitFieldWriter(b)
 
-	var n int
 	var err error
+	var n int
 
 	if n, err = w.WriteStruct(ptr); err != nil {
 		rt := reflect.TypeOf(ptr)
@@ -386,7 +382,7 @@ func TestBitFieldWriter_Write_VariableLengthSlice(t *testing.T) {
 
 	if reflect.DeepEqual(b.Bytes(), exp) == false {
 		rt := reflect.TypeOf(ptr)
-		t.Fatalf("%v write %v, want %v", rt, b.Bytes(), exp)
+		t.Fatalf("%v write %#v, want %#v", rt, b.Bytes(), exp)
 	}
 }
 
