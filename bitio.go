@@ -8,6 +8,7 @@ import (
 	"golang.org/x/exp/constraints"
 )
 
+// ByteOrder indicates the endianness of binary data.
 type ByteOrder bool
 
 const (
@@ -15,6 +16,8 @@ const (
 	LittleEndian ByteOrder = true
 )
 
+// Read read from BitReader and convert to T type value.
+// Returns error if reading from reader fails or number of read bits is less than requested.
 func Read[T constraints.Integer](br BitReader, nBit int, order ByteOrder, dst *T) error {
 	tsize := int(unsafe.Sizeof(*dst))
 	if tsize*8 < nBit {
@@ -51,6 +54,8 @@ func Read[T constraints.Integer](br BitReader, nBit int, order ByteOrder, dst *T
 	return nil
 }
 
+// ReadSlice read from BitReader and convert to T type slice.
+// Return error if element read failed.
 func ReadSlice[T constraints.Integer](br BitReader, elemBit int, order ByteOrder, dst []T) error {
 	length := len(dst)
 	for i := 0; i < length; i++ {
@@ -61,6 +66,8 @@ func ReadSlice[T constraints.Integer](br BitReader, elemBit int, order ByteOrder
 	return nil
 }
 
+// Write write T type value to BitWriter as specified number of bits.
+// Return error if writing to writer fails or number of write bits is exceeds T size.
 func Write[T constraints.Integer](bw BitWriter, nBit int, order ByteOrder, src T) error {
 	tsize := int(unsafe.Sizeof(src))
 	if tsize*8 < nBit {
@@ -95,6 +102,8 @@ func Write[T constraints.Integer](bw BitWriter, nBit int, order ByteOrder, src T
 	return nil
 }
 
+// WriteSlice writes a slice of T to BitWriter.
+// Return error if element write fails.
 func WriteSlice[T constraints.Integer](bw BitWriter, elemBit int, order ByteOrder, src []T) error {
 	length := len(src)
 	for i := 0; i < length; i++ {
