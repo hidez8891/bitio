@@ -690,8 +690,9 @@ func binaryToByteArray(str string) []byte {
 type Infinity struct{}
 
 func (obj *Infinity) Read(p []byte) (int, error) {
-	for i := 0; i < len(p); i++ {
-		p[i] = 0xed
+	p[0] = 0xed
+	for i := 1; i < len(p); i *= 2 {
+		copy(p[i:], p[:i])
 	}
 	return len(p), nil
 }
