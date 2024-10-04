@@ -208,27 +208,39 @@ func (obj *BitWriteBuffer) WriteBits(p []byte, bitSize int) (nBit int, err error
 		return 0, fmt.Errorf("bitio: argument p[] is %d bits, want %d bits", len(p)*8, bitSize)
 	}
 
-	byteSize := (bitSize + 7) / 8
-	buf := make([]byte, byteSize)
-	copy(buf, p[len(p)-byteSize:])
-
-	shift := uint(bitSize) % 8
-	if shift > 0 {
-		leftShift(buf, 8-shift)
-		buf[len(buf)-1] >>= 8 - shift
+	bufBits := bitSize
+	bufBytes := (bufBits + 7) / 8
+	buf := make([]byte, bufBytes)
+	copy(buf, p[len(p)-bufBytes:])
+	if bufBits%8 > 0 {
+		leftShift(buf, uint(8-bufBits%8))
 	}
 
-	for _, b := range buf {
-		var n int
+	if obj.left > 0 {
+		if (bufBits + obj.left) > 8*bufBytes {
+			buf = append(buf, byte(0))
+		}
+		rightShift(buf, uint(obj.left))
+		buf[0] |= obj.buff << uint(8-obj.left)
+		bufBits += obj.left
 
-		n, err = obj.WriteBit(b, min(8, bitSize))
-		if err != nil {
+		obj.buff = 0
+		obj.left = 0
+	}
+
+	if bufBits%8 > 0 {
+		obj.left = bufBits % 8
+		obj.buff = buf[len(buf)-1] >> uint(8-obj.left)
+		buf = buf[:len(buf)-1]
+		bufBits -= obj.left
+	}
+
+	if len(buf) > 0 {
+		if _, err = obj.w.Write(buf); err != nil {
 			return
 		}
-
-		bitSize -= n
-		nBit += n
 	}
+	nBit = bitSize
 
 	return
 }
