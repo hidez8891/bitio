@@ -222,7 +222,7 @@ func (obj *BitWriteBuffer) WriteBits(p []byte, bitSize int) (nBit int, err error
 
 	bufBits := bitSize
 	bufBytes := (bufBits + 7) / 8
-	buf := make([]byte, bufBytes)
+	buf := make([]byte, bufBytes, bufBytes+1)
 	copy(buf, p[len(p)-bufBytes:])
 	if bufBits%8 > 0 {
 		leftShift(buf, uint(8-bufBits%8))
