@@ -28,6 +28,28 @@ func TestLeftShift(t *testing.T) {
 	}
 }
 
+func BenchmarkLeftShift_8b(b *testing.B) {
+	benchmarkLeftShift(b, 8)
+}
+
+func BenchmarkLeftShift_32b(b *testing.B) {
+	benchmarkLeftShift(b, 32)
+}
+
+func BenchmarkLeftShift_1024b(b *testing.B) {
+	benchmarkLeftShift(b, 1024)
+}
+
+func benchmarkLeftShift(b *testing.B, bufSize int) {
+	buf := make([]byte, bufSize)
+
+	b.SetBytes(int64(len(buf)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		leftShift(buf, 10)
+	}
+}
+
 func TestRightShift(t *testing.T) {
 	var tests = []struct {
 		src  []byte
@@ -48,5 +70,27 @@ func TestRightShift(t *testing.T) {
 		if reflect.DeepEqual(tt.src, tt.dst) == false {
 			t.Fatalf("rightShift returns %#v, want %#v", tt.src, tt.dst)
 		}
+	}
+}
+
+func BenchmarkRightShift_8b(b *testing.B) {
+	benchmarkRightShift(b, 8)
+}
+
+func BenchmarkRightShift_32b(b *testing.B) {
+	benchmarkRightShift(b, 32)
+}
+
+func BenchmarkRightShift_1024b(b *testing.B) {
+	benchmarkRightShift(b, 1024)
+}
+
+func benchmarkRightShift(b *testing.B, bufSize int) {
+	buf := make([]byte, bufSize)
+
+	b.SetBytes(int64(len(buf)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		rightShift(buf, 10)
 	}
 }

@@ -19,102 +19,20 @@ func TestBitField_interface(t *testing.T) {
 	_ = w
 }
 
-type TestBitFieldBool1 struct {
-	Val1 bool `bit:"1"`
-	Val2 bool `bit:"1"`
-}
-
-type TestBitFieldBool2 struct {
-	Val1 bool `byte:"2" endian:"big"`
-	Val2 bool `byte:"2" endian:"little"`
-}
-
-type TestBitFieldInt1 struct {
-	Val1 int `byte:"1"`
-	Val2 int `byte:"2"`
-	Val3 int `byte:"3"`
-}
-
-type TestBitFieldInt2 struct {
-	Val1 int `bit:"1"`
-	Val2 int `bit:"14"`
-	Val3 int `bit:"1"`
-}
-
-type TestBitFieldInt3 struct {
-	Val1 int `byte:"2" endian:"big"`
-	Val2 int `byte:"2" endian:"little"`
-}
-
-type TestBitFieldUint1 struct {
-	Val1 uint `byte:"1"`
-	Val2 uint `byte:"2"`
-	Val3 uint `byte:"3"`
-}
-
-type TestBitFieldUint2 struct {
-	Val1 uint `bit:"1"`
-	Val2 uint `bit:"14"`
-	Val3 uint `bit:"1"`
-}
-
-type TestBitFieldUint3 struct {
-	Val1 uint `byte:"2" endian:"big"`
-	Val2 uint `byte:"2" endian:"little"`
-}
-
-type TestBitFieldString1 struct {
-	Val1 string `byte:"1"`
-	Val2 string `byte:"3"`
-}
-
-type TestBitFieldSlice1 struct {
-	Val1 []int  `bit:"4" len:"2"`
-	Val2 []byte `bit:"4" len:"2"`
-}
-
-type TestBitFieldCombination1 struct {
-	Val1 int8  `byte:"1"`
-	Val2 uint8 `byte:"1"`
-}
-
-type TestBitFieldCombination2 struct {
-	Val1 int8   `bit:"4"`
-	Val2 string `bit:"8"`
-	Val3 uint8  `bit:"4"`
-}
-
-type TestUintBoundaries struct {
-	Val1 uint16 `bit:"12" endian:"big"`
-	Val2 uint16 `bit:"12" endian:"big"`
-}
-
-type TestUintBoundaries2 struct {
-	Val1 uint16 `bit:"12" endian:"big"`
-	Val2 uint16 `bit:"12" endian:"little"`
-}
-
-type TestVariableLength struct {
-	Val1 uint8  `bit:"8"`
-	Val2 []byte `byte:"1" len:"Val1"`
-}
-
-type TestVariableLength2 struct {
-	Val1 uint8  `bit:"4"`
-	Val2 []byte `bit:"4" len:"Val1"`
-}
-
-type TestData struct {
+var bitfieldTests = []struct {
+	name string
 	raw  []byte
 	ptr  interface{}
 	exp  map[string]interface{}
 	bits int
-}
-
-var tests = []TestData{
+}{
 	{
-		raw: []byte{0x80},
-		ptr: &TestBitFieldBool1{},
+		name: "bool field 01",
+		raw:  []byte{0x80},
+		ptr: &struct {
+			Val1 bool `bit:"1"`
+			Val2 bool `bit:"1"`
+		}{},
 		exp: map[string]interface{}{
 			"Val1": true,
 			"Val2": false,
@@ -122,8 +40,12 @@ var tests = []TestData{
 		bits: 2,
 	},
 	{
-		raw: []byte{0x40},
-		ptr: &TestBitFieldBool1{},
+		name: "bool field 02",
+		raw:  []byte{0x40},
+		ptr: &struct {
+			Val1 bool `bit:"1"`
+			Val2 bool `bit:"1"`
+		}{},
 		exp: map[string]interface{}{
 			"Val1": false,
 			"Val2": true,
@@ -131,8 +53,12 @@ var tests = []TestData{
 		bits: 2,
 	},
 	{
-		raw: []byte{0x00, 0x01, 0x00, 0x00},
-		ptr: &TestBitFieldBool2{},
+		name: "bool field 03",
+		raw:  []byte{0x00, 0x01, 0x00, 0x00},
+		ptr: &struct {
+			Val1 bool `byte:"2" endian:"big"`
+			Val2 bool `byte:"2" endian:"little"`
+		}{},
 		exp: map[string]interface{}{
 			"Val1": true,
 			"Val2": false,
@@ -140,8 +66,12 @@ var tests = []TestData{
 		bits: 32,
 	},
 	{
-		raw: []byte{0x00, 0x00, 0x01, 0x00},
-		ptr: &TestBitFieldBool2{},
+		name: "bool field 04",
+		raw:  []byte{0x00, 0x00, 0x01, 0x00},
+		ptr: &struct {
+			Val1 bool `byte:"2" endian:"big"`
+			Val2 bool `byte:"2" endian:"little"`
+		}{},
 		exp: map[string]interface{}{
 			"Val1": false,
 			"Val2": true,
@@ -149,8 +79,13 @@ var tests = []TestData{
 		bits: 32,
 	},
 	{
-		raw: []byte{0x0a, 0xff, 0x1c, 0xff, 0x01, 0x1c},
-		ptr: &TestBitFieldInt1{},
+		name: "int field 01",
+		raw:  []byte{0x0a, 0xff, 0x1c, 0xff, 0x01, 0x1c},
+		ptr: &struct {
+			Val1 int `byte:"1"`
+			Val2 int `byte:"2"`
+			Val3 int `byte:"3"`
+		}{},
 		exp: map[string]interface{}{
 			"Val1": 0x0a,
 			"Val2": 0x1cff,
@@ -159,8 +94,13 @@ var tests = []TestData{
 		bits: 48,
 	},
 	{
-		raw: []byte{0x97, 0x97},
-		ptr: &TestBitFieldInt2{},
+		name: "int field 02",
+		raw:  []byte{0x97, 0x97},
+		ptr: &struct {
+			Val1 int `bit:"1"`
+			Val2 int `bit:"14"`
+			Val3 int `bit:"1"`
+		}{},
 		exp: map[string]interface{}{
 			"Val1": 0x1,    // 1
 			"Val2": 0x0b2f, // 0010_1111 00_1011 [Little endian]
@@ -169,8 +109,12 @@ var tests = []TestData{
 		bits: 16,
 	},
 	{
-		raw: []byte{0x0a, 0x01, 0x0a, 0x01},
-		ptr: &TestBitFieldInt3{},
+		name: "int field 03",
+		raw:  []byte{0x0a, 0x01, 0x0a, 0x01},
+		ptr: &struct {
+			Val1 int `byte:"2" endian:"big"`
+			Val2 int `byte:"2" endian:"little"`
+		}{},
 		exp: map[string]interface{}{
 			"Val1": 0x0a01,
 			"Val2": 0x010a,
@@ -178,8 +122,13 @@ var tests = []TestData{
 		bits: 32,
 	},
 	{
-		raw: []byte{0x0a, 0xff, 0x1c, 0xff, 0x01, 0x1c},
-		ptr: &TestBitFieldUint1{},
+		name: "uint field 01",
+		raw:  []byte{0x0a, 0xff, 0x1c, 0xff, 0x01, 0x1c},
+		ptr: &struct {
+			Val1 uint `byte:"1"`
+			Val2 uint `byte:"2"`
+			Val3 uint `byte:"3"`
+		}{},
 		exp: map[string]interface{}{
 			"Val1": 0x0a,
 			"Val2": 0x1cff,
@@ -188,8 +137,13 @@ var tests = []TestData{
 		bits: 48,
 	},
 	{
-		raw: []byte{0x97, 0x97},
-		ptr: &TestBitFieldUint2{},
+		name: "uint field 02",
+		raw:  []byte{0x97, 0x97},
+		ptr: &struct {
+			Val1 uint `bit:"1"`
+			Val2 uint `bit:"14"`
+			Val3 uint `bit:"1"`
+		}{},
 		exp: map[string]interface{}{
 			"Val1": 0x1,    // 1
 			"Val2": 0x0b2f, // 0010_1111 00_1011 [Little endian]
@@ -198,8 +152,12 @@ var tests = []TestData{
 		bits: 16,
 	},
 	{
-		raw: []byte{0x0a, 0x01, 0x0a, 0x01},
-		ptr: &TestBitFieldUint3{},
+		name: "uint field 03",
+		raw:  []byte{0x0a, 0x01, 0x0a, 0x01},
+		ptr: &struct {
+			Val1 uint `byte:"2" endian:"big"`
+			Val2 uint `byte:"2" endian:"little"`
+		}{},
 		exp: map[string]interface{}{
 			"Val1": 0x0a01,
 			"Val2": 0x010a,
@@ -207,8 +165,12 @@ var tests = []TestData{
 		bits: 32,
 	},
 	{
-		raw: []byte{'0', 'a', 'b', 'c'},
-		ptr: &TestBitFieldString1{},
+		name: "string field 01",
+		raw:  []byte{'0', 'a', 'b', 'c'},
+		ptr: &struct {
+			Val1 string `byte:"1"`
+			Val2 string `byte:"3"`
+		}{},
 		exp: map[string]interface{}{
 			"Val1": "0",
 			"Val2": "abc",
@@ -216,8 +178,12 @@ var tests = []TestData{
 		bits: 32,
 	},
 	{
-		raw: []byte{0xca, 0xca},
-		ptr: &TestBitFieldSlice1{},
+		name: "slice field 01",
+		raw:  []byte{0xca, 0xca},
+		ptr: &struct {
+			Val1 []int  `bit:"4" len:"2"`
+			Val2 []byte `bit:"4" len:"2"`
+		}{},
 		exp: map[string]interface{}{
 			"Val1": []int{0x0c, 0x0a},
 			"Val2": []byte{0x0c, 0x0a},
@@ -225,8 +191,12 @@ var tests = []TestData{
 		bits: 16,
 	},
 	{
-		raw: []byte{0x80, 0x80},
-		ptr: &TestBitFieldCombination1{},
+		name: "combination 01",
+		raw:  []byte{0x80, 0x80},
+		ptr: &struct {
+			Val1 int8  `byte:"1"`
+			Val2 uint8 `byte:"1"`
+		}{},
 		exp: map[string]interface{}{
 			"Val1": -128,
 			"Val2": 128,
@@ -234,8 +204,13 @@ var tests = []TestData{
 		bits: 16,
 	},
 	{
-		raw: []byte{0x16, 0x11},
-		ptr: &TestBitFieldCombination2{},
+		name: "combination 02",
+		raw:  []byte{0x16, 0x11},
+		ptr: &struct {
+			Val1 int8   `bit:"4"`
+			Val2 string `bit:"8"`
+			Val3 uint8  `bit:"4"`
+		}{},
 		exp: map[string]interface{}{
 			"Val1": 0x1,
 			"Val2": "a",
@@ -244,8 +219,12 @@ var tests = []TestData{
 		bits: 16,
 	},
 	{
-		raw: []byte{0x43, 0x52, 0x01},
-		ptr: &TestUintBoundaries{},
+		name: "uint boundaries 01",
+		raw:  []byte{0x43, 0x52, 0x01},
+		ptr: &struct {
+			Val1 uint16 `bit:"12" endian:"big"`
+			Val2 uint16 `bit:"12" endian:"big"`
+		}{},
 		exp: map[string]interface{}{
 			"Val1": 0x435,
 			"Val2": 0x201,
@@ -253,8 +232,12 @@ var tests = []TestData{
 		bits: 24,
 	},
 	{
-		raw: []byte{0x43, 0x52, 0x01},
-		ptr: &TestUintBoundaries2{},
+		name: "uint boundaries 02",
+		raw:  []byte{0x43, 0x52, 0x01},
+		ptr: &struct {
+			Val1 uint16 `bit:"12" endian:"big"`
+			Val2 uint16 `bit:"12" endian:"little"`
+		}{},
 		exp: map[string]interface{}{
 			"Val1": 0x435,
 			"Val2": 0x120,
@@ -262,8 +245,12 @@ var tests = []TestData{
 		bits: 24,
 	},
 	{
-		raw: []byte{0x05, 0x11, 0x22, 0x33, 0x44, 0x55},
-		ptr: &TestVariableLength{},
+		name: "variable length 01",
+		raw:  []byte{0x05, 0x11, 0x22, 0x33, 0x44, 0x55},
+		ptr: &struct {
+			Val1 uint8  `bit:"8"`
+			Val2 []byte `byte:"1" len:"Val1"`
+		}{},
 		exp: map[string]interface{}{
 			"Val1": 0x05,
 			"Val2": []byte{0x11, 0x22, 0x33, 0x44, 0x55},
@@ -271,8 +258,12 @@ var tests = []TestData{
 		bits: 48,
 	},
 	{
-		raw: []byte{0x51, 0x23, 0x45},
-		ptr: &TestVariableLength2{},
+		name: "variable length 02",
+		raw:  []byte{0x51, 0x23, 0x45},
+		ptr: &struct {
+			Val1 uint8  `bit:"4"`
+			Val2 []byte `bit:"4" len:"Val1"`
+		}{},
 		exp: map[string]interface{}{
 			"Val1": 0x05,
 			"Val2": []byte{0x01, 0x02, 0x03, 0x04, 0x05},
@@ -282,7 +273,7 @@ var tests = []TestData{
 }
 
 func TestBitFieldReader_Read(t *testing.T) {
-	for _, tt := range tests {
+	for _, tt := range bitfieldTests {
 		r := bitio.NewBitFieldReader(bytes.NewReader(tt.raw))
 		ptr := tt.ptr
 
@@ -318,27 +309,24 @@ func TestBitFieldReader_Read(t *testing.T) {
 }
 
 func TestBitFieldWriter_Write(t *testing.T) {
-	for _, tt := range tests {
+	for _, tt := range bitfieldTests {
 		var err error
 		var n int
 
 		ptr := tt.ptr
 		r := bitio.NewBitFieldReader(bytes.NewReader(tt.raw))
 		if _, err = r.ReadStruct(ptr); err != nil {
-			rt := reflect.TypeOf(ptr)
-			t.Fatalf("Write test initialize %v error: %v", rt, err)
+			t.Fatalf("Write test initialize %q error: %v", tt.name, err)
 		}
 
 		b := bytes.NewBuffer([]byte{})
 		w := bitio.NewBitFieldWriter(b)
 		if n, err = w.WriteStruct(ptr); err != nil {
-			rt := reflect.TypeOf(ptr)
-			t.Fatalf("Write %v error: %v", rt, err)
+			t.Fatalf("Write %q error: %v", tt.name, err)
 		}
 
 		if n != tt.bits {
-			rt := reflect.TypeOf(ptr)
-			t.Fatalf("Write %v write size %d, want %d", rt, n, tt.bits)
+			t.Fatalf("Write %q write size %d, want %d", tt.name, n, tt.bits)
 		}
 
 		if err = w.Flush(); err != nil {
@@ -346,19 +334,22 @@ func TestBitFieldWriter_Write(t *testing.T) {
 		}
 
 		if reflect.DeepEqual(b.Bytes(), tt.raw) == false {
-			rt := reflect.TypeOf(ptr)
-			t.Fatalf("%v write %#v, want %#v", rt, b.Bytes(), tt.raw)
+			t.Fatalf("%q write %#v, want %#v", tt.name, b.Bytes(), tt.raw)
 		}
 	}
 }
 
 func TestBitFieldWriter_Write_VariableLengthSlice(t *testing.T) {
-	ptr := &TestVariableLength2{
+	ptr := &struct {
+		Val1 uint8  `bit:"4"`
+		Val2 []byte `bit:"4" len:"Val1"`
+	}{
 		Val1: 0, // unset length
 		Val2: []byte{0x01, 0x02, 0x03, 0x04, 0x05},
 	}
 	bits := 24
 	exp := []byte{0x51, 0x23, 0x45}
+	name := "variable length's variable"
 
 	b := bytes.NewBuffer([]byte{})
 	w := bitio.NewBitFieldWriter(b)
@@ -367,13 +358,11 @@ func TestBitFieldWriter_Write_VariableLengthSlice(t *testing.T) {
 	var n int
 
 	if n, err = w.WriteStruct(ptr); err != nil {
-		rt := reflect.TypeOf(ptr)
-		t.Fatalf("Write %v error: %v", rt, err)
+		t.Fatalf("Write %q error: %v", name, err)
 	}
 
 	if n != bits {
-		rt := reflect.TypeOf(ptr)
-		t.Fatalf("Write %v write size %d, want %d", rt, n, bits)
+		t.Fatalf("Write %q write size %d, want %d", name, n, bits)
 	}
 
 	if err = w.Flush(); err != nil {
@@ -381,8 +370,7 @@ func TestBitFieldWriter_Write_VariableLengthSlice(t *testing.T) {
 	}
 
 	if reflect.DeepEqual(b.Bytes(), exp) == false {
-		rt := reflect.TypeOf(ptr)
-		t.Fatalf("%v write %#v, want %#v", rt, b.Bytes(), exp)
+		t.Fatalf("%q write %#v, want %#v", name, b.Bytes(), exp)
 	}
 }
 

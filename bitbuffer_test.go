@@ -292,28 +292,28 @@ func TestBitReadBuffer_Read_Combination(t *testing.T) {
 	}
 }
 
+func BenchmarkBitReadBuffer_Read_Aligned_8b(b *testing.B) {
+	readAligned(b, 8)
+}
+
+func BenchmarkBitReadBuffer_Read_UnAligned_8b(b *testing.B) {
+	readUnAligned(b, 8)
+}
+
 func BenchmarkBitReadBuffer_Read_Aligned_32b(b *testing.B) {
-	readAligned(b, 2<<5)
+	readAligned(b, 32)
 }
 
 func BenchmarkBitReadBuffer_Read_UnAligned_32b(b *testing.B) {
-	readUnAligned(b, 2<<5)
+	readUnAligned(b, 32)
 }
 
 func BenchmarkBitReadBuffer_Read_Aligned_1024b(b *testing.B) {
-	readAligned(b, 2<<10)
+	readAligned(b, 1024)
 }
 
 func BenchmarkBitReadBuffer_Read_UnAligned_1024b(b *testing.B) {
-	readUnAligned(b, 2<<10)
-}
-
-func BenchmarkBitReadBuffer_Read_Aligned_65536b(b *testing.B) {
-	readAligned(b, 2<<16)
-}
-
-func BenchmarkBitReadBuffer_Read_UnAligned_65536b(b *testing.B) {
-	readUnAligned(b, 2<<16)
+	readUnAligned(b, 1024)
 }
 
 func readAligned(b *testing.B, bufSize int) {
@@ -619,28 +619,28 @@ func TestBitWriteBuffer_Write_Combination(t *testing.T) {
 	}
 }
 
+func BenchmarkBitWriteBuffer_Write_Aligned_8b(b *testing.B) {
+	writeAligned(b, 8)
+}
+
+func BenchmarkBitWriteBuffer_Write_UnAligned_8b(b *testing.B) {
+	writeUnAligned(b, 8)
+}
+
 func BenchmarkBitWriteBuffer_Write_Aligned_32b(b *testing.B) {
-	writeAligned(b, 2<<5)
+	writeAligned(b, 32)
 }
 
 func BenchmarkBitWriteBuffer_Write_UnAligned_32b(b *testing.B) {
-	writeUnAligned(b, 2<<5)
+	writeUnAligned(b, 32)
 }
 
 func BenchmarkBitWriteBuffer_Write_Aligned_1024b(b *testing.B) {
-	writeAligned(b, 2<<10)
+	writeAligned(b, 1024)
 }
 
 func BenchmarkBitWriteBuffer_Write_UnAligned_1024b(b *testing.B) {
-	writeUnAligned(b, 2<<10)
-}
-
-func BenchmarkBitWriteBuffer_Write_Aligned_65536b(b *testing.B) {
-	writeAligned(b, 2<<16)
-}
-
-func BenchmarkBitWriteBuffer_Write_UnAligned_65536b(b *testing.B) {
-	writeUnAligned(b, 2<<16)
+	writeUnAligned(b, 1024)
 }
 
 func writeAligned(b *testing.B, bufSize int) {
@@ -690,8 +690,9 @@ func binaryToByteArray(str string) []byte {
 type Infinity struct{}
 
 func (obj *Infinity) Read(p []byte) (int, error) {
-	for i := 0; i < len(p); i++ {
-		p[i] = 0xed
+	p[0] = 0xed
+	for i := 1; i < len(p); i *= 2 {
+		copy(p[i:], p[:i])
 	}
 	return len(p), nil
 }
