@@ -85,32 +85,44 @@ func (obj *BitReadBuffer) ReadBits(p []byte, bitSize int) (nBit int, err error) 
 		return 0, fmt.Errorf("bitio: argument p[] is %d bits, want %d bits", len(p)*8, bitSize)
 	}
 
-	if bitSize <= obj.left {
-		p[len(p)-1] = obj.buff >> uint(8-bitSize)
-		nBit = bitSize
-
+	if obj.left >= bitSize {
+		p[len(p)-1] = obj.buff >> (8 - bitSize)
 		obj.buff <<= uint(bitSize)
 		obj.left -= bitSize
+		nBit = bitSize
 		return
 	}
 
-	readBit := bitSize - obj.left
-	readByte := (readBit + 7) / 8
-	pp := make([]byte, readByte)
-	if _, err = obj.r.Read(pp); err != nil {
+	wantReadBytes := (bitSize - obj.left + 7) / 8
+	bufBits := wantReadBytes * 8
+	buf := make([]byte, wantReadBytes, wantReadBytes+2)
+	if _, err = obj.r.Read(buf[:wantReadBytes]); err != nil {
 		return
 	}
 
-	copy(p, pp)
-	rightShift(p, uint(obj.left))
-	p[0] |= obj.buff
-	rightShift(p, uint(8*len(p)-bitSize))
+	if obj.left > 0 {
+		buf = append(buf, byte(0))
+		rightShift(buf, uint(obj.left))
+		buf[0] |= obj.buff
+		bufBits += obj.left
 
-	obj.buff = 0
-	obj.left = 0
-	if readBit%8 > 0 {
-		obj.left = 8 - readBit%8
-		obj.buff = pp[len(pp)-1] << uint(8-obj.left)
+		obj.buff = 0
+		obj.left = 0
+	}
+
+	if bitSize%8 > 0 {
+		shift := 8 - bitSize%8
+		if bufBits+shift > 8*len(buf) {
+			buf = append(buf, byte(0))
+		}
+		rightShift(buf, uint(shift))
+	}
+	returnBytes := (bitSize + 7) / 8
+	copy(p[len(p)-returnBytes:], buf[:returnBytes])
+
+	if bufBits > bitSize {
+		obj.left = bufBits - bitSize
+		obj.buff = buf[len(buf)-1]
 	}
 
 	nBit = bitSize
